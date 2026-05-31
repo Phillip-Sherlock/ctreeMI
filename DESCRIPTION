@@ -3,7 +3,7 @@ Title: Conditional Inference Trees with Stacked Multiple Imputation
 Version: 0.1.0
 Authors@R: person("Phillip", "Sherlock",
     email = "phillip.sherlock@ufl.edu",
-    role = c("aut", "cre")
+    role = c("aut", "cre"),
     comment = c(ORCID = "0000-0003-0433-3681"))
 Description: Implements the stacked-imputation workflow for conditional
     inference trees ('ctree') described in Sherlock et al. (2026)
@@ -21,18 +21,14 @@ Description: Implements the stacked-imputation workflow for conditional
     <doi:10.1198/106186006X133933>).
 License: GPL (>= 3)
 Encoding: UTF-8
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Imports:
     partykit (>= 1.2-0),
     mice (>= 3.0.0),
-    stats,
     methods
 Suggests:
-    testthat (>= 3.0.0),
-    knitr,
-    rmarkdown
+    testthat (>= 3.0.0)
 Config/testthat/edition: 3
-VignetteBuilder: knitr
 Depends:
     R (>= 4.0.0)
 URL: https://github.com/Phillip-Sherlock/ctreeMI
