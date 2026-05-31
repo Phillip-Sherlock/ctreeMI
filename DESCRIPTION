@@ -1,0 +1,39 @@
+Package: ctreeMI
+Title: Conditional Inference Trees with Stacked Multiple Imputation
+Version: 0.1.0
+Authors@R: person("Phillip", "Sherlock",
+    email = "phillip.sherlock@ufl.edu",
+    role = c("aut", "cre")
+    comment = c(ORCID = "0000-0003-0433-3681"))
+Description: Implements the stacked-imputation workflow for conditional
+    inference trees ('ctree') described in Sherlock et al. (2026)
+    <doi:10.1080/00273171.2026.2661244>. When data contain missing values,
+    multiply imputed datasets (e.g., from 'mice') are stacked vertically
+    and a single 'ctree' is fit on the combined data. To correct for the
+    artificially inflated sample size introduced by stacking, the pruning
+    significance threshold is divided by the number of imputations M
+    (the Stack/M correction), producing a conservative but interpretable
+    single tree that incorporates imputation uncertainty without requiring
+    pooling of structurally different trees. Also exports
+    stack_imputations() and rescale_alpha() as standalone utilities. The
+    underlying 'ctree' algorithm is provided by 'partykit'
+    (Hothorn & Zeileis, 2015; Hothorn, Hornik & Zeileis, 2006
+    <doi:10.1198/106186006X133933>).
+License: GPL (>= 3)
+Encoding: UTF-8
+RoxygenNote: 7.3.2
+Imports:
+    partykit (>= 1.2-0),
+    mice (>= 3.0.0),
+    stats,
+    methods
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+Depends:
+    R (>= 4.0.0)
+URL: https://github.com/Phillip-Sherlock/ctreeMI
+BugReports: https://github.com/Phillip-Sherlock/ctreeMI/issues
