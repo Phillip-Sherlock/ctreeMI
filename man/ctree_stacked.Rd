@@ -26,7 +26,7 @@ ctree_stacked(formula, data, m = NULL, alpha = 0.05, verbose = TRUE, ...)
     splitting (default \code{0.05}). The corrected threshold actually
     applied is \code{alpha / m}. Must be strictly between 0 and 1.}
   \item{verbose}{Logical. If \code{TRUE} (default), prints a message
-    summarising the stacking and correction applied.}
+    summarizing the stacking and correction applied.}
   \item{...}{Additional arguments passed to
     \code{\link[partykit]{ctree_control}}.}
 }

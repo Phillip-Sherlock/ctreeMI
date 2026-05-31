@@ -2,7 +2,7 @@
 \alias{print.ctreeMI}
 \title{Print Method for ctreeMI Objects}
 \description{
-  Prints a header summarising the stacked-imputation settings, followed
+  Prints a header summarizing the stacked-imputation settings, followed
   by the standard \pkg{partykit} tree output.
 }
 \usage{
