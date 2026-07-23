@@ -91,7 +91,6 @@ ctree_stacked(formula, data, m = NULL, alpha = 0.05, verbose = TRUE, ...)
   Handling missing data in structural equation models using multiple
   imputation and stacking.
   \emph{Structural Equation Modeling}, 28(6), 915--930.
-  \doi{10.1080/10705511.2021.1916925}
 }
 \seealso{
   \code{\link[partykit]{ctree}},
@@ -103,7 +102,7 @@ ctree_stacked(formula, data, m = NULL, alpha = 0.05, verbose = TRUE, ...)
   \code{\link{summary.ctreeMI}}
 }
 \examples{
-\dontrun{
+\donttest{
   library(mice)
 
   # Introduce missingness into the airquality dataset

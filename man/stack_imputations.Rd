@@ -36,7 +36,6 @@ stack_imputations(data_list, imp_col = ".imp")
   Handling missing data in structural equation models using multiple
   imputation and stacking.
   \emph{Structural Equation Modeling}, 28(6), 915--930.
-  \doi{10.1080/10705511.2021.1916925}
 }
 \seealso{
   \code{\link{ctree_stacked}}, \code{\link{rescale_alpha}}

@@ -1,3 +1,12 @@
+# ctreeMI 0.2.0
+
+* New `node_table()`: returns a data frame of tree nodes with the split
+  path defining each node, its size in the stacked data, and its
+  effective sample size on the original scale (stacked size / M).
+* New `report_ctreeMI()`: generates a methods paragraph describing the
+  fitted model, populated with the actual M, sample sizes, significance
+  thresholds, and tree size.
+
 # ctreeMI 0.1.0
 
 * Initial CRAN release.
