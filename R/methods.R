@@ -19,8 +19,13 @@ print.ctreeMI <- function(x, ...) {
     cat(sprintf("  Imputations (M)      : %d\n",   info$m))
     cat(sprintf("  Rows per imputation  : %d\n",   info$n_original))
     cat(sprintf("  Stacked rows         : %d\n",   info$n_stacked))
-    cat(sprintf("  Nominal alpha        : %.4f\n", info$alpha_nominal))
-    cat(sprintf("  Corrected alpha (a/M): %.6f\n", info$alpha_applied))
+    cat(sprintf("  Alpha                : %.4f\n", info$alpha))
+    cat(sprintf("  Correction           : %s\n",
+                if (is.null(info$correction)) "statistic/M" else info$correction))
+    if (!is.null(info$n_splits_before)) {
+      cat(sprintf("  Splits kept          : %d of %d\n",
+                  info$n_splits_after, info$n_splits_before))
+    }
     cat(sprintf("  Formula              : %s\n",
                 deparse(info$formula, width.cutoff = 60L)))
   }
@@ -67,8 +72,13 @@ summary.ctreeMI <- function(object, ...) {
     cat(sprintf("  Imputations (M)      : %d\n",   info$m))
     cat(sprintf("  Rows per imputation  : %d\n",   info$n_original))
     cat(sprintf("  Stacked rows         : %d\n",   info$n_stacked))
-    cat(sprintf("  Nominal alpha        : %.4f\n", info$alpha_nominal))
-    cat(sprintf("  Corrected alpha (a/M): %.6f\n", info$alpha_applied))
+    cat(sprintf("  Alpha                : %.4f\n", info$alpha))
+    cat(sprintf("  Correction           : %s\n",
+                if (is.null(info$correction)) "statistic/M" else info$correction))
+    if (!is.null(info$n_splits_before)) {
+      cat(sprintf("  Splits kept          : %d of %d\n",
+                  info$n_splits_after, info$n_splits_before))
+    }
     cat(sprintf("  Formula              : %s\n",
                 deparse(info$formula, width.cutoff = 60L)))
   }

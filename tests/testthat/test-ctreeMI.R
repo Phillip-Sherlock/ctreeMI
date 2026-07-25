@@ -1,7 +1,10 @@
-test_that("rescale_alpha works correctly", {
-  expect_equal(rescale_alpha(0.05, 30), 0.05 / 30)
-  expect_equal(rescale_alpha(0.05, 10), 0.05 / 10)
-  expect_equal(rescale_alpha(0.01, 5),  0.01 / 5)
+test_that("rescale_alpha still returns alpha/m but warns (deprecated)", {
+  ## NOTE: alpha/m is NOT the Stack/M correction. Retained only for
+  ## backward compatibility; see test-stackM-correction.R.
+  expect_equal(suppressWarnings(rescale_alpha(0.05, 30)), 0.05 / 30)
+  expect_equal(suppressWarnings(rescale_alpha(0.05, 10)), 0.05 / 10)
+  expect_equal(suppressWarnings(rescale_alpha(0.01, 5)),  0.01 / 5)
+  expect_warning(rescale_alpha(0.05, 30), "deprecated")
   expect_error(rescale_alpha(0.05, 0))
   expect_error(rescale_alpha(1.0,  10))
   expect_error(rescale_alpha(0.0,  10))
@@ -64,8 +67,8 @@ test_that("ctree_stacked runs on a list of data frames and returns ctreeMI", {
   expect_equal(info$m, 5)
   expect_equal(info$n_original, 100)
   expect_equal(info$n_stacked, 500)
-  expect_equal(info$alpha_nominal, 0.05)
-  expect_equal(info$alpha_applied, 0.05 / 5)
+  expect_equal(info$alpha, 0.05)
+  expect_identical(info$correction, "statistic/M")
 })
 
 test_that("ctree_stacked warns and falls back for single data frame", {

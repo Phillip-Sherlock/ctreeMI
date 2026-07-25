@@ -19,9 +19,9 @@
 #'   object or a list, defaults to the number of datasets available.
 #'   Ignored when `data` is a plain data frame.
 #' @param alpha Numeric. The nominal significance threshold for node-level
-#'   splitting (default 0.05). The threshold actually applied to the ctree
-#'   algorithm is `alpha / m` (Stack / M correction). Must be between 0
-#'   and 1.
+#'   splitting (default 0.05). It is applied to p-values recomputed from
+#'   node statistics that have been divided by `m`; `alpha` itself is not
+#'   rescaled. Must be strictly between 0 and 1.
 #' @param verbose Logical. If `TRUE` (default), prints a message summarising
 #'   the stacking and correction applied.
 #' @param ... Additional arguments passed to [partykit::ctree_control()].
@@ -35,8 +35,13 @@
 #'     \item{`m`}{Number of imputations used.}
 #'     \item{`n_original`}{Number of rows in a single imputed dataset.}
 #'     \item{`n_stacked`}{Total rows in the stacked dataset.}
-#'     \item{`alpha_nominal`}{The nominal alpha supplied by the user.}
-#'     \item{`alpha_applied`}{The alpha actually applied (`alpha / m`).}
+#'     \item{`alpha`}{The significance threshold applied to the rescaled
+#'       p-values.}
+#'     \item{`correction`}{Character, `"statistic/M"`.}
+#'     \item{`node_stats`}{Data frame of per-node raw statistics, degrees
+#'       of freedom, rescaled statistics, p-values, and retention.}
+#'     \item{`n_splits_before`, `n_splits_after`}{Splits before and after
+#'       the correction was applied.}
 #'     \item{`formula`}{The model formula.}
 #'     \item{`call`}{The matched call.}
 #'   }
@@ -65,14 +70,34 @@
 #' inflated and the tree to split more aggressively than warranted.
 #'
 #' Sherlock et al. (2026) proposed and validated the **Stack / M**
-#' correction: dividing each node-level test statistic by M before
-#' evaluating the Bonferroni-corrected significance criterion. In practice,
-#' this is equivalent to applying a significance threshold of `alpha / M`
-#' to the p-values computed on the stacked data. Monte Carlo simulations
-#' under MCAR confirmed that this approach yields sub-nominal type-I error
-#' rates (conservative) and reduced but acceptable power, making it
-#' well-suited for exploratory analyses where interpretability and control
-#' of spurious splits are prioritised.
+#' correction: each node-level test statistic computed on the stacked data
+#' is divided by M, the p-value is recomputed from the rescaled statistic,
+#' the Bonferroni adjustment for the number of candidate splitting
+#' variables is reapplied, and nodes that no longer meet `alpha` are
+#' pruned. Monte Carlo simulations under MCAR confirmed sub-nominal
+#' (conservative) type-I error and reduced but acceptable power.
+#'
+#' ## Correction applied to the statistic, not to alpha
+#'
+#' Rescaling the statistic is **not** equivalent to dividing the
+#' significance threshold by M. Writing `q(p, df)` for the chi-square
+#' quantile function, the two rules are:
+#'
+#' \itemize{
+#'   \item statistic rescaling (correct): reject when
+#'     `X > M * q(1 - alpha, df)`
+#'   \item threshold rescaling (incorrect): reject when
+#'     `X > q(1 - alpha / M, df)`
+#' }
+#'
+#' These coincide only at `M = 1`. At `df = 1`, `alpha = 0.05`, `M = 30`
+#' the first requires `X > 115.2` and the second only `X > 9.9`, so
+#' threshold rescaling under-corrects by an order of magnitude and grows
+#' substantially larger trees than the published method.
+#'
+#' Versions 0.1.0 and 0.2.0 of this package implemented threshold
+#' rescaling. Trees fitted with those versions are under-corrected and
+#' should be refitted.
 #'
 #' ## Usage with `mice`
 #'
@@ -118,7 +143,7 @@
 #'
 #' @seealso
 #' [partykit::ctree()], [partykit::ctree_control()], [mice::mice()],
-#' [stack_imputations()], [rescale_alpha()]
+#' [stack_imputations()], [rescale_statistic()], [prune_stackM()]
 #'
 #' @examples
 #' \dontrun{
@@ -179,35 +204,61 @@ ctree_stacked <- function(formula,
   stacked  <- stack_imputations(data_list)
   n_stack  <- nrow(stacked)
 
-  # ## Compute corrected alpha##################################################
-  alpha_adj <- rescale_alpha(alpha, m_actual)
-
   if (verbose) {
-    message(
-      sprintf(
-        "[ctreeMI] Stacked %d imputed datasets (n = %d each; %d total rows).\n",
-        m_actual, n_orig, n_stack
-      ),
-      sprintf(
-        "[ctreeMI] Nominal alpha = %.4f  |  Stack/M corrected alpha = %.6f",
-        alpha, alpha_adj
-      )
-    )
+    message(sprintf(
+      "[ctreeMI] Stacked %d imputed datasets (n = %d each; %d total rows).",
+      m_actual, n_orig, n_stack))
   }
 
-  # ## Fit ctree on stacked data################################################
-  ctrl <- partykit::ctree_control(alpha = alpha_adj, ...)
-  fit  <- partykit::ctree(formula, data = stacked, control = ctrl)
+  # ## Grow, then correct######################################################
+  #
+  # The tree is grown at the NOMINAL alpha and the Stack/M correction is
+  # applied afterwards by rescaling node statistics. Two facts make this
+  # valid and efficient:
+  #
+  #  1. partykit selects the splitting variable and cut point independently
+  #     of alpha; alpha only decides whether to stop. So pruning a tree by a
+  #     criterion is equivalent to having grown it under that criterion.
+  #  2. The correction is strictly STRICTER than the nominal threshold for
+  #     any m >= 1, because M * q(1 - alpha, df) >= q(1 - alpha, df). Every
+  #     split the correction could retain is therefore already present in a
+  #     tree grown at the nominal alpha, so there is no need to grow a
+  #     maximal tree first.
+  #
+  # `testtype = "Univariate"` is forced so that the stored p-values are raw
+  # per-variable values. The multiplicity adjustment is reapplied in
+  # prune_stackM() AFTER the statistic has been rescaled, which is the order
+  # the method requires; leaving partykit to Bonferroni-adjust beforehand
+  # would make the stored p-values impossible to invert reliably.
+  dots <- list(...)
+  dots$alpha    <- alpha
+  dots$teststat <- "quadratic"
+  dots$testtype <- "Univariate"
+  ctrl <- do.call(partykit::ctree_control, dots)
+
+  fit_full <- partykit::ctree(formula, data = stacked, control = ctrl)
+
+  n_before <- length(setdiff(partykit::nodeids(fit_full),
+                             partykit::nodeids(fit_full, terminal = TRUE)))
+
+  pr  <- prune_stackM(fit_full, m = m_actual, alpha = alpha, verbose = verbose)
+  fit <- pr$tree
+
+  n_after <- length(setdiff(partykit::nodeids(fit),
+                            partykit::nodeids(fit, terminal = TRUE)))
 
   # ## Attach ctreeMI metadata##################################################
   attr(fit, "ctreeMI_info") <- list(
-    m             = m_actual,
-    n_original    = n_orig,
-    n_stacked     = n_stack,
-    alpha_nominal = alpha,
-    alpha_applied = alpha_adj,
-    formula       = formula,
-    call          = cl
+    m               = m_actual,
+    n_original      = n_orig,
+    n_stacked       = n_stack,
+    alpha           = alpha,
+    correction      = "statistic/M",
+    node_stats      = pr$node_stats,
+    n_splits_before = n_before,
+    n_splits_after  = n_after,
+    formula         = formula,
+    call            = cl
   )
 
   class(fit) <- c("ctreeMI", class(fit))

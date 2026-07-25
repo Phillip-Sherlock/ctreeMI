@@ -132,7 +132,8 @@ test_that("report_ctreeMI returns text and matching quantities", {
   expect_equal(rep$m, m)
   expect_equal(rep$n_original, n)
   expect_equal(rep$n_stacked, m * n)
-  expect_equal(rep$alpha_applied, 0.05 / m)
+  expect_equal(rep$alpha, 0.05)
+  expect_identical(rep$correction, "statistic/M")
   expect_equal(rep$n_terminal, nrow(nt))
   expect_equal(rep$max_depth, max(nt$depth))
 
