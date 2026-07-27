@@ -43,15 +43,6 @@ test_that("degrees of freedom can be recovered and verified", {
   }
 })
 
-test_that("node statistics are extractable from the installed partykit", {
-  expect_true(check_stackM_extraction(verbose = FALSE))
-})
-
-test_that("rescale_alpha is deprecated and warns", {
-  expect_warning(rescale_alpha(0.05, 30), "deprecated")
-  expect_equal(suppressWarnings(rescale_alpha(0.05, 30)), 0.05 / 30)
-})
-
 test_that("the correction removes splits relative to no correction", {
   skip_on_cran()
   set.seed(42)

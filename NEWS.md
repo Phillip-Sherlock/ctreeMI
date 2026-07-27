@@ -1,3 +1,115 @@
+# ctreeMI 1.0.0
+
+0.3.0 introduced the right correction. This release makes it survive contact
+with real stacked data, and derives the degrees of freedom instead of relying
+on a p-value that has usually underflowed by the time it is needed.
+**Results will differ from 0.3.0.**
+
+## `ctree_stacked()` no longer aborts on large stacked datasets
+
+`partykit` stores node-level p-values on the natural scale, and they underflow
+to exactly 0 once the statistic passes roughly 1400 at `df = 2`. On stacked
+data that is the normal case, not an edge case: 3,000 rows with M = 30 already
+produces a root statistic above 5,000. 0.3.0 recovered the degrees of freedom
+by inverting the stored p-value and, failing that, stopped with
+
+    could not recover degrees of freedom at node 1 (statistic = 5187.76,
+    p = 0). Refusing to prune on unverified statistics.
+
+so the package could not fit the kind of dataset it was written for. 1.0.0
+recovers `df` where the stored p-value is interior and falls back on the
+structural rule (below) where it is not, and computes the corrected p-value as
+`-expm1(k * pchisq(stat, df, lower.tail = TRUE, log.p = TRUE))`, which stays
+accurate to about 1e-300 rather than collapsing to 0.
+
+## Degrees of freedom are derived per node and per candidate variable
+
+With `teststat = "quadratic"` the node-level statistic is chi-square with `df`
+equal to the rank of the covariance matrix of the linear statistic:
+
+* numeric or ordered predictor: `df` = the outcome dimension, so 1 for a
+  univariate outcome, 2 for a bivariate outcome, 3 for three outcomes;
+* unordered factor with `L` levels **present in that node**: `(L - 1)` times
+  the outcome dimension, which changes from node to node as levels drop out of
+  a branch.
+
+`ctree_stacked()` and `prune_stackM()` recover an integer `df` for every
+candidate variable at every node, by inverting the (statistic, p-value) pairs
+`partykit` stored, and cross-check the result against the structural rule.
+
+## All candidate variables are tested, not only the one split on
+
+`ctree` splits a node when *any* candidate variable meets `alpha`, and that is
+the rule the correction must reapply. Rescaling can reorder the candidates,
+because they carry different degrees of freedom, so the variable with the
+smallest p-value before the correction is not always the smallest after.
+`node_stats` gains `p_min` and `variable_min` recording the decisive candidate,
+and the full per-candidate table is attached as
+`attr(node_stats, "candidates")`.
+
+## Pruning is bottom-up
+
+An internal node is collapsed only once all of its own internal descendants
+have been collapsed, so a node whose descendant survives the correction keeps
+its split. This is the compression order described in the paper. Trees will
+therefore retain some splits that 0.3.0 removed.
+
+## `prune_stackM()` handles a default `ctree()` fit
+
+`ctree_stacked()` grows with `testtype = "Univariate"` so that the stored
+p-values are raw, but `prune_stackM()` is documented as accepting any tree
+fitted on stacked data, and `partykit`'s default is `testtype = "Bonferroni"`,
+where the stored p-values already carry the multiplicity adjustment. Inverting
+those as if they were raw returned a plausible but wrong `df` (2.32 instead of
+2; 12.05 instead of 8 in testing) and the internal verification could not
+detect it, because it re-solved the same equation it had just inverted.
+1.0.0 reads the multiplicity setting from the fitted control and inverts the
+matching relationship, and `check_stackM_extraction()` now exercises both
+settings and checks the recovered `df` against the structural rule rather than
+against itself.
+
+## `rescale_alpha()` is removed
+
+It implemented the `alpha / M` rule from 0.1.0-0.2.0, which is not the Stack/M
+correction, and by 0.3.0 its entire help page was an explanation of why not to
+use it. Deprecating it kept a function in the index whose only purpose was to
+document a mistake. Code that still calls it will now fail with
+`could not find function "rescale_alpha"`; the replacement is
+[`rescale_statistic()`], or [`ctree_stacked()`], which applies the correct rule
+automatically.
+
+## Other changes
+
+* `minsplit` and `minbucket` are multiplied by M (`scale_minsize = TRUE`), so
+  they refer to original rather than stacked observations. The `partykit`
+  defaults previously allowed terminal nodes holding fewer than one original
+  observation.
+* The imputation index is no longer added to the model frame before fitting,
+  so a `y ~ .` formula can no longer split on imputation number. The
+  documented usage in 0.3.0 invited exactly that.
+* `NAMESPACE` was out of date: `prune_stackM()`, `rescale_statistic()` and
+  `check_stackM_extraction()` had `@export` tags but were not exported, so
+  they were unreachable despite being advertised in `DESCRIPTION`.
+* `ctree_stacked()` gains `df` and `scale_minsize` arguments. `formula`,
+  `data`, `m`, `alpha` and `verbose` are unchanged.
+* Trees fitted with `teststat = "maximum"`, `testtype = "MonteCarlo"` or
+  `splittest = TRUE` are rejected with an explanatory error rather than
+  silently rescaled: those settings do not use a chi-square reference
+  distribution.
+* Fixed a test that called `summary.ctreeMI()` by name; the method is
+  registered for S3 dispatch but not exported, so the call failed and
+  `R CMD check` did not pass on 0.3.0.
+* Corrected the Rodgers et al. (2021) reference to the paper actually cited in
+  Sherlock et al. (2026): Rodgers, Jacobucci & Grimm, *Journal of Behavioral
+  Data Science*, 1(1), 127-153.
+* `README.md` still described the `alpha / M` rule from 0.1.0-0.2.0 and
+  pointed at a repository URL that does not exist; both corrected.
+* Renamed the numerical regression tests to `test-stackM-numerics.R`; a
+  version number in a filename becomes archaeology at the next release.
+* Removed `R/zzz.R`. The `.onLoad()` / `registerS3method()` workaround is
+  unnecessary now that `NAMESPACE` carries the `S3method()` entries, and it
+  registered only two of the four methods.
+
 # ctreeMI 0.3.0
 
 ## Correctness fix -- please refit any tree produced by 0.1.0 or 0.2.0

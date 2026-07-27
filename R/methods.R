@@ -22,6 +22,13 @@ print.ctreeMI <- function(x, ...) {
     cat(sprintf("  Alpha                : %.4f\n", info$alpha))
     cat(sprintf("  Correction           : %s\n",
                 if (is.null(info$correction)) "statistic/M" else info$correction))
+    if (!is.null(info$outcome_dim))
+      cat(sprintf("  Outcome dimension    : %s\n", format(info$outcome_dim)))
+    if (!is.null(info$df))
+      cat(sprintf("  Degrees of freedom   : %s\n",
+                  if (identical(info$df, "derived"))
+                    "derived per node and candidate variable"
+                  else paste(format(info$df), collapse = ", ")))
     if (!is.null(info$n_splits_before)) {
       cat(sprintf("  Splits kept          : %d of %d\n",
                   info$n_splits_after, info$n_splits_before))
@@ -75,6 +82,13 @@ summary.ctreeMI <- function(object, ...) {
     cat(sprintf("  Alpha                : %.4f\n", info$alpha))
     cat(sprintf("  Correction           : %s\n",
                 if (is.null(info$correction)) "statistic/M" else info$correction))
+    if (!is.null(info$outcome_dim))
+      cat(sprintf("  Outcome dimension    : %s\n", format(info$outcome_dim)))
+    if (!is.null(info$df))
+      cat(sprintf("  Degrees of freedom   : %s\n",
+                  if (identical(info$df, "derived"))
+                    "derived per node and candidate variable"
+                  else paste(format(info$df), collapse = ", ")))
     if (!is.null(info$n_splits_before)) {
       cat(sprintf("  Splits kept          : %d of %d\n",
                   info$n_splits_after, info$n_splits_before))

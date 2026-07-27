@@ -4,11 +4,13 @@
 #' Fits a conditional inference tree (ctree) on stacked multiply imputed
 #' datasets using the Stack / M rescaling procedure described in
 #' Sherlock et al. (2026). Multiply imputed datasets are concatenated
-#' vertically ("stacked"), and the significance threshold used for
-#' node-level pruning is divided by the number of imputations (M) to
-#' counteract the artificially inflated sample size. This yields a single,
-#' coherent, interpretable tree that incorporates imputation variability
-#' without requiring the pooling of structurally different trees.
+#' vertically ("stacked") and one tree is grown on the combined data. Each
+#' node-level chi-square statistic is then divided by the number of
+#' imputations (M) to counteract the artificially inflated sample size, the
+#' node-level p-values are recomputed, and the tree is compressed bottom-up.
+#' This yields a single, coherent, interpretable tree that incorporates
+#' imputation variability without requiring the pooling of structurally
+#' different trees.
 #'
 #' @param formula A model formula, passed to [partykit::ctree()].
 #' @param data A `mids` object from [mice::mice()], a list of imputed
@@ -22,6 +24,10 @@
 #'   splitting (default 0.05). It is applied to p-values recomputed from
 #'   node statistics that have been divided by `m`; `alpha` itself is not
 #'   rescaled. Must be strictly between 0 and 1.
+#' @param scale_minsize Logical. If `TRUE` (default), `minsplit` and
+#'   `minbucket` are multiplied by `m` so they refer to original rather than
+#'   stacked observations. The `partykit` defaults would otherwise permit
+#'   terminal nodes holding fewer than one original observation.
 #' @param verbose Logical. If `TRUE` (default), prints a message summarising
 #'   the stacking and correction applied.
 #' @param ... Additional arguments passed to [partykit::ctree_control()].
@@ -42,6 +48,11 @@
 #'       of freedom, rescaled statistics, p-values, and retention.}
 #'     \item{`n_splits_before`, `n_splits_after`}{Splits before and after
 #'       the correction was applied.}
+#'     \item{`outcome_dim`}{Rank of the influence function of the response,
+#'       i.e. the degrees of freedom carried by a numeric or ordered
+#'       predictor.}
+#'     \item{`minsplit`, `minbucket`}{Minimum node sizes actually used, in
+#'       stacked rows.}
 #'     \item{`formula`}{The model formula.}
 #'     \item{`call`}{The matched call.}
 #'   }
@@ -133,17 +144,17 @@
 #'   recursive partitioning in R. *Journal of Machine Learning Research*,
 #'   16, 3905-3909.
 #'
-#' Rodgers, J., Khoo, S.-T., & L?dtke, O. (2021). Handling missing data in
-#'   structural equation models using multiple imputation and stacking.
-#'   *Structural Equation Modeling*, 28(6), 915-930.
-#'   \doi{10.1080/10705511.2021.1916925}
+#' Rodgers, D. M., Jacobucci, R., & Grimm, K. J. (2021). A multiple
+#'   imputation approach for handling missing data in classification and
+#'   regression trees. *Journal of Behavioral Data Science*, 1(1), 127-153.
+#'   \doi{10.35566/jbds/v1n1/p6}
 #'
 #' Rubin, D. B. (1987). *Multiple imputation for nonresponse in surveys.*
 #'   Wiley.
 #'
 #' @seealso
 #' [partykit::ctree()], [partykit::ctree_control()], [mice::mice()],
-#' [stack_imputations()], [rescale_statistic()], [prune_stackM()]
+#' [stack_imputations()], [rescale_statistic()], [prune_stackM()], [node_table()]
 #'
 #' @examples
 #' \dontrun{
@@ -169,9 +180,10 @@
 #' @export
 ctree_stacked <- function(formula,
                           data,
-                          m       = NULL,
-                          alpha   = 0.05,
-                          verbose = TRUE,
+                          m             = NULL,
+                          alpha         = 0.05,
+                          scale_minsize = TRUE,
+                          verbose       = TRUE,
                           ...) {
 
   cl <- match.call()
@@ -201,7 +213,10 @@ ctree_stacked <- function(formula,
   }
 
   # ## Stack datasets##########################################################-
-  stacked  <- stack_imputations(data_list)
+  ## The imputation index is kept out of the model frame: with a `y ~ .`
+  ## formula it would otherwise become a candidate splitting variable, and
+  ## splitting on imputation number is meaningless.
+  stacked  <- stack_imputations(data_list, imp_col = NULL)
   n_stack  <- nrow(stacked)
 
   if (verbose) {
@@ -236,6 +251,13 @@ ctree_stacked <- function(formula,
   dots$testtype <- "Univariate"
   ctrl <- do.call(partykit::ctree_control, dots)
 
+  ## minsplit and minbucket count rows, so on stacked data the partykit
+  ## defaults would allow nodes holding fewer than one original observation.
+  if (isTRUE(scale_minsize)) {
+    ctrl$minsplit  <- as.integer(ceiling(ctrl$minsplit  * m_actual))
+    ctrl$minbucket <- as.integer(ceiling(ctrl$minbucket * m_actual))
+  }
+
   fit_full <- partykit::ctree(formula, data = stacked, control = ctrl)
 
   n_before <- length(setdiff(partykit::nodeids(fit_full),
@@ -257,6 +279,11 @@ ctree_stacked <- function(formula,
     node_stats      = pr$node_stats,
     n_splits_before = n_before,
     n_splits_after  = n_after,
+    outcome_dim     = .response_rank(fit_full),
+    df              = "derived",
+    scale_minsize   = scale_minsize,
+    minsplit        = ctrl$minsplit,
+    minbucket       = ctrl$minbucket,
     formula         = formula,
     call            = cl
   )

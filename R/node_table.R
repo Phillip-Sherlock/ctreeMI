@@ -9,6 +9,44 @@ NULL
 ## node_table(): terminal-node summary with effective sample size
 ## ---------------------------------------------------------------------------
 
+#' Terminal-Node Summary With Effective Sample Sizes
+#'
+#' @description
+#' Summarises the nodes of a fitted tree: the split path leading to each node,
+#' its size in the stacked data, its effective size in original observations
+#' (stacked size divided by `M`), and node-level outcome summaries.
+#'
+#' @details
+#' Terminal-node sample sizes printed by `partykit` refer to the stacked data,
+#' in which every observation appears `M` times. `effective_n` divides by `M`
+#' to give the number of original observations behind each node. Node-level
+#' means and proportions need no such adjustment: they are already averages
+#' over the imputations.
+#'
+#' @param object A `ctreeMI` object from [ctree_stacked()], or any `party`
+#'   object (in which case `M` is taken to be 1).
+#' @param terminal_only Logical. Report terminal nodes only (default), or every
+#'   node including the root.
+#' @param max_levels Integer or `NULL`. Truncate factor level sets longer than
+#'   this in the printed split path.
+#' @param digits Number of digits for the outcome summaries.
+#'
+#' @return A data frame of class `"ctreeMI_nodes"` with one row per node:
+#'   `node_id`, `depth`, `n_stacked`, `effective_n`, any outcome summaries,
+#'   `path`, and a `conditions` list column holding the split conditions
+#'   individually.
+#'
+#' @seealso [ctree_stacked()], [report_ctreeMI()]
+#'
+#' @examples
+#' set.seed(1)
+#' imps <- lapply(1:5, function(i) {
+#'   x <- stats::rnorm(200)
+#'   data.frame(x = x, y = stats::rnorm(200) + 1.5 * (x > 0))
+#' })
+#' fit <- ctree_stacked(y ~ x, data = imps, verbose = FALSE)
+#' node_table(fit)
+#'
 #' @export
 node_table <- function(object, terminal_only = TRUE, max_levels = NULL,
                        digits = 3) {
@@ -221,6 +259,12 @@ outcome_summary <- function(resp, fit_ids, ids, digits) {
 
 ## ---- print method for the node table --------------------------------------
 
+#' Print a Node Table
+#'
+#' @param x A `"ctreeMI_nodes"` object from [node_table()].
+#' @param ... Passed to [print.data.frame()].
+#'
+#' @return `x`, invisibly.
 #' @export
 print.ctreeMI_nodes <- function(x, ...) {
   m <- attr(x, "m")
@@ -238,6 +282,31 @@ print.ctreeMI_nodes <- function(x, ...) {
 ## report_ctreeMI(): study-level methods paragraph
 ## ---------------------------------------------------------------------------
 
+#' A Methods Paragraph For a ctreeMI Analysis
+#'
+#' @description
+#' Generates a paragraph describing the analysis in the form usually required
+#' by a methods section: the number of imputations, the size of the stacked
+#' dataset, the model, the Stack / M correction and the threshold applied, how
+#' many candidate splits survived it, and the shape of the resulting tree.
+#'
+#' @param object A `ctreeMI` object from [ctree_stacked()].
+#' @param digits Number of digits used in the node summaries.
+#'
+#' @return An object of class `"ctreeMI_report"`: a list whose `text` element
+#'   is the paragraph, alongside the quantities it reports.
+#'
+#' @seealso [ctree_stacked()], [node_table()]
+#'
+#' @examples
+#' set.seed(1)
+#' imps <- lapply(1:5, function(i) {
+#'   x <- stats::rnorm(200)
+#'   data.frame(x = x, y = stats::rnorm(200) + 1.5 * (x > 0))
+#' })
+#' fit <- ctree_stacked(y ~ x, data = imps, verbose = FALSE)
+#' report_ctreeMI(fit)
+#'
 #' @export
 report_ctreeMI <- function(object, digits = 3) {
 
@@ -298,6 +367,13 @@ report_ctreeMI <- function(object, digits = 3) {
 }
 
 
+#' Print a Methods Paragraph
+#'
+#' @param x A `"ctreeMI_report"` object from [report_ctreeMI()].
+#' @param width Wrapping width in characters.
+#' @param ... Currently unused.
+#'
+#' @return `x`, invisibly.
 #' @export
 print.ctreeMI_report <- function(x, width = 76, ...) {
   cat(paste(strwrap(x$text, width = width), collapse = "\n"), "\n")
