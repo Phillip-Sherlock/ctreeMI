@@ -13,3 +13,7 @@ ctreeMI.Rcheck/
 *.tar.gz
 ctreeMI-manual.tex
 .DS_Store
+*.Rcheck/
+*.tar.gz
+ctreeMI-manual.tex
+.DS_Store
