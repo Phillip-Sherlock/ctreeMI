@@ -9,3 +9,7 @@ inst/doc
 .DS_Store
 ctreeMI.Rcheck/
 *.tar.gz
+*.Rcheck/
+*.tar.gz
+ctreeMI-manual.tex
+.DS_Store

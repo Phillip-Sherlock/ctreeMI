@@ -1,6 +1,6 @@
 Package: ctreeMI
 Title: Conditional Inference Trees with Stacked Multiple Imputation
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: person("Phillip", "Sherlock",
     email = "phillip.sherlock@ufl.edu",
     role = c("aut", "cre"),
@@ -19,9 +19,9 @@ Description: Implements the stacked-imputation workflow for conditional
     and each candidate variable, so univariate, bivariate and
     higher-dimensional outcomes are all handled, as are unordered factor
     predictors, whose degrees of freedom depend on how many levels remain
-    in a node. The result is a conservative but interpretable single tree
-    that incorporates imputation uncertainty without requiring pooling of
-    structurally different trees. Also exports stack_imputations(),
+    in a node. The result is a single interpretable tree that incorporates
+    imputation uncertainty without requiring pooling of structurally
+    different trees. Also exports stack_imputations(),
     rescale_statistic(), prune_stackM(), node_table() and
     report_ctreeMI() as standalone utilities. The underlying 'ctree'
     algorithm is provided by 'partykit' (Hothorn & Zeileis, 2015; Hothorn,

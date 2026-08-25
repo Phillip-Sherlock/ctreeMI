@@ -85,8 +85,9 @@
 #' is divided by M, the p-value is recomputed from the rescaled statistic,
 #' the Bonferroni adjustment for the number of candidate splitting
 #' variables is reapplied, and nodes that no longer meet `alpha` are
-#' pruned. Monte Carlo simulations under MCAR confirmed sub-nominal
-#' (conservative) type-I error and reduced but acceptable power.
+#' pruned. See "Scope" and "Node-level calibration" below for the
+#' conditions under which the procedure has been examined and for the
+#' behaviour of its node-level test.
 #'
 #' ## Correction applied to the statistic, not to alpha
 #'
@@ -109,6 +110,81 @@
 #' Versions 0.1.0 and 0.2.0 of this package implemented threshold
 #' rescaling. Trees fitted with those versions are under-corrected and
 #' should be refitted.
+#'
+#' ## When to use this procedure
+#'
+#' The problem it solves is specific. Multiple imputation produces M
+#' completed datasets, and for most models their results are combined by
+#' Rubin's rules; a tree offers no estimand that can be averaged, since the
+#' M trees may split on different variables in a different order. Stacking
+#' avoids that, and the correction addresses the inflated sample size that
+#' stacking introduces. If a single interpretable tree is wanted from
+#' multiply imputed data, that is what this package is for.
+#'
+#' In the simulations archived at the DOI given below, the procedure
+#' recovered known structure more often than listwise deletion, surrogate
+#' splits, missingness incorporated in attributes, or single imputation,
+#' and produced the most stable partitions across independent sets of
+#' imputations. Its accuracy held across missingness rates of 15% to 45%
+#' while each of those four declined, listwise deletion most steeply.
+#' Tree sizes tracked the true size closely wherever real structure was
+#' present, and were stable from M = 5 to M = 50.
+#'
+#' Two settings matter in practice. The outcome should be included in the
+#' imputation model, which `mice()` does by default: omitting it attenuates
+#' the associations a tree is meant to find, at a cost described under
+#' "Node-level calibration" below. And M should follow the usual guidance
+#' for the fraction of missing information; M = 30 was used throughout
+#' these simulations.
+#'
+#' The procedure suits least the exploratory case in which no structure may
+#' be present, since the miscalibration described below is concentrated
+#' under a true null. A single unreplicated subgroup found in data with no
+#' prior reason to expect one warrants the checks given below rather than
+#' the node-level p-value.
+#'
+#' ## Scope
+#'
+#' The procedure assumes the data are missing at random in the sense of
+#' Rubin (1976), as does the multiple imputation it is built on. In the
+#' simulations archived at the DOI given below it was examined under MCAR
+#' and MAR across a range of missingness rates, sample sizes and outcome
+#' types, and it is intended for use where missingness is plausibly at
+#' random. Under MNAR, recovery of the true structure degrades for every
+#' imputation-based approach, this one included, and a tree fitted in that
+#' setting should be treated as provisional. The mechanism is rarely known
+#' in applied work, and MNAR cannot be distinguished from MAR using the
+#' observed data, so this is a statement about where the assumption is
+#' defensible rather than a condition that can be checked.
+#'
+#' ## Node-level calibration
+#'
+#' The node-level test is not calibrated to its nominal level when the
+#' imputation model conditions on the outcome. That is recommended
+#' practice, and it is what `mice()` does by default when run on a data
+#' frame containing the outcome. Under a true null the test rejects more
+#' often than `alpha` implies, increasingly so as the missingness rate
+#' rises. Omitting the outcome from the imputation model reverses this
+#' into conservatism rather than restoring calibration, and is not
+#' recommended, since it attenuates the associations a tree is meant to
+#' detect.
+#'
+#' Node-level p-values should therefore be read as approximate rather than
+#' nominal. Two checks are available in their place. [node_table()]
+#' reports the effective sample size behind each terminal node, in
+#' original rather than stacked observations, so a node resting on few
+#' original cases can be identified. And refitting on an independent set
+#' of imputations, then comparing the resulting partitions, indicates
+#' whether the structure is stable.
+#'
+#' Simulations characterising this behaviour are archived at
+#' \doi{10.5281/zenodo.21939940}.
+#'
+#' Documentation prior to version 1.0.1 described the correction as
+#' sub-nominal under MCAR. That characterisation comes from the
+#' simulations in Sherlock et al. (2026), which used a marginal imputation
+#' model conditioning on neither the outcome nor the remaining predictors.
+#' It does not hold under outcome-conditioned imputation.
 #'
 #' ## Usage with `mice`
 #'

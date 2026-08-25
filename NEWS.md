@@ -1,3 +1,36 @@
+# ctreeMI 1.0.1
+
+Documentation only. No function has changed and results are identical to
+1.0.0.
+
+## Corrected description of node-level calibration
+
+`?ctree_stacked` reported sub-nominal, and therefore conservative, type-I
+error under MCAR. That holds under the marginal imputation model used in the
+simulations of Sherlock et al. (2026), which conditioned on neither the
+outcome nor the remaining predictors. It does not hold under
+outcome-conditioned imputation, which is recommended practice and is what
+`mice()` does by default when the outcome is present in the data frame. In
+that setting the node-level test rejects more often than `alpha` implies,
+increasingly so as the missingness rate rises.
+
+The documentation now states this, notes that omitting the outcome from the
+imputation model reverses the direction rather than restoring calibration,
+and points to `node_table()` and to refitting on independent imputations as
+the checks to use in place of node-level p-values.
+
+The package DESCRIPTION previously described the result as "a conservative
+but interpretable single tree". The word "conservative" has been removed for
+the same reason.
+
+## Added a scope section
+
+`?ctree_stacked` now states that the procedure assumes missingness at random,
+and that recovery degrades under MNAR for every imputation-based approach.
+
+Supporting simulations are archived at
+<https://doi.org/10.5281/zenodo.21939940>.
+
 # ctreeMI 1.0.0
 
 0.3.0 introduced the right correction. This release makes it survive contact
