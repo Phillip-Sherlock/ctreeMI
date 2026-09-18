@@ -10,13 +10,13 @@ check_stackM_extraction(verbose = TRUE)
 \item{verbose}{Logical. Print a per-node report.}
 }
 \value{
-Invisibly, `TRUE` if extraction succeeded everywhere it was tried.
+Invisibly, \code{TRUE} if extraction succeeded everywhere it was tried.
 }
 \description{
 Diagnostic. Fits small trees under both of the multiplicity settings the
 correction supports, and verifies that node-level statistics and degrees of
 freedom can be recovered from the fitted objects. Run it once after
-installing, or after upgrading `partykit`.
+installing, or after upgrading \code{partykit}.
 }
 \examples{
 check_stackM_extraction(verbose = FALSE)

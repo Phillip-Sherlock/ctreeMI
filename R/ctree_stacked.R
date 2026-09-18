@@ -28,10 +28,10 @@
 #'   `minbucket` are multiplied by `m` so they refer to original rather than
 #'   stacked observations. The `partykit` defaults would otherwise permit
 #'   terminal nodes holding fewer than one original observation.
-#' @param verbose Logical. If `TRUE` (default), prints a message summarising
+#' @param verbose Logical. If `TRUE` (default), prints a message summarizing
 #'   the stacking and correction applied.
 #' @param ... Additional arguments passed to [partykit::ctree_control()].
-#'   Note: `alpha` in `...` is ignored in favour of the `alpha` argument
+#'   Note: `alpha` in `...` is ignored in favor of the `alpha` argument
 #'   above.
 #'
 #' @return An object of class `c("ctreeMI", "constparty", "party")`. This
@@ -87,7 +87,7 @@
 #' variables is reapplied, and nodes that no longer meet `alpha` are
 #' pruned. See "Scope" and "Node-level calibration" below for the
 #' conditions under which the procedure has been examined and for the
-#' behaviour of its node-level test.
+#' behavior of its node-level test.
 #'
 #' ## Correction applied to the statistic, not to alpha
 #'
@@ -125,7 +125,7 @@
 #' recovered known structure more often than listwise deletion, surrogate
 #' splits, missingness incorporated in attributes, or single imputation,
 #' and produced the most stable partitions across independent sets of
-#' imputations. Its accuracy held across missingness rates of 15% to 45%
+#' imputations. Its accuracy held across missingness rates of 15\% to 45\%
 #' while each of those four declined, listwise deletion most steeply.
 #' Tree sizes tracked the true size closely wherever real structure was
 #' present, and were stable from M = 5 to M = 50.
@@ -170,18 +170,23 @@
 #' detect.
 #'
 #' Node-level p-values should therefore be read as approximate rather than
-#' nominal. Two checks are available in their place. [node_table()]
-#' reports the effective sample size behind each terminal node, in
-#' original rather than stacked observations, so a node resting on few
-#' original cases can be identified. And refitting on an independent set
-#' of imputations, then comparing the resulting partitions, indicates
-#' whether the structure is stable.
+#' nominal, and should not be reported as error rates. The recommended
+#' remedy is to treat the tree as discovery and test its partition on
+#' independent data with [confirm_ctreeMI()], which pools across
+#' imputations by Rubin's rules and so has valid error control;
+#' [discover_confirm()] performs the whole sequence. Two further checks
+#' help in interpreting a fitted tree. [node_table()] reports the
+#' effective sample size behind each terminal node, in original rather
+#' than stacked observations, so a node resting on few original cases can
+#' be identified. And refitting on an independent set of imputations, then
+#' comparing the resulting partitions, indicates whether the structure is
+#' stable.
 #'
-#' Simulations characterising this behaviour are archived at
+#' Simulations characterizing this behavior are archived at
 #' \doi{10.5281/zenodo.21939940}.
 #'
 #' Documentation prior to version 1.0.1 described the correction as
-#' sub-nominal under MCAR. That characterisation comes from the
+#' sub-nominal under MCAR. That characterization comes from the
 #' simulations in Sherlock et al. (2026), which used a marginal imputation
 #' model conditioning on neither the outcome nor the remaining predictors.
 #' It does not hold under outcome-conditioned imputation.

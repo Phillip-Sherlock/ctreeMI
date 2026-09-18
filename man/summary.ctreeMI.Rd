@@ -7,18 +7,18 @@
 \method{summary}{ctreeMI}(object, ...)
 }
 \arguments{
-\item{object}{An object of class `"ctreeMI"`, as returned by
-[ctree_stacked()].}
+\item{object}{An object of class \code{"ctreeMI"}, as returned by
+\code{\link[=ctree_stacked]{ctree_stacked()}}.}
 
 \item{...}{Currently unused.}
 }
 \value{
 A list (invisibly) with components:
-  \describe{
-    \item{`ctreeMI_info`}{Stacking metadata from [ctree_stacked()].}
-    \item{`n_terminal_nodes`}{Number of terminal nodes in the fitted tree.}
-    \item{`depth`}{Maximum depth of the fitted tree.}
-  }
+\describe{
+\item{\code{ctreeMI_info}}{Stacking metadata from \code{\link[=ctree_stacked]{ctree_stacked()}}.}
+\item{\code{n_terminal_nodes}}{Number of terminal nodes in the fitted tree.}
+\item{\code{depth}}{Maximum depth of the fitted tree.}
+}
 }
 \description{
 Returns a named list with details about the stacked-imputation fit

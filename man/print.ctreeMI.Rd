@@ -7,15 +7,15 @@
 \method{print}{ctreeMI}(x, ...)
 }
 \arguments{
-\item{x}{An object of class `"ctreeMI"`, as returned by
-[ctree_stacked()].}
+\item{x}{An object of class \code{"ctreeMI"}, as returned by
+\code{\link[=ctree_stacked]{ctree_stacked()}}.}
 
 \item{...}{Further arguments passed to the partykit print method.}
 }
 \value{
-`x`, invisibly.
+\code{x}, invisibly.
 }
 \description{
 Prints a summary of the stacked-imputation settings used to fit the
-tree, followed by the standard [partykit::ctree()] output.
+tree, followed by the standard \code{\link[partykit:ctree]{partykit::ctree()}} output.
 }

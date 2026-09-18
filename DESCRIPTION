@@ -1,6 +1,6 @@
 Package: ctreeMI
 Title: Conditional Inference Trees with Stacked Multiple Imputation
-Version: 1.0.1
+Version: 1.1.0
 Authors@R: person("Phillip", "Sherlock",
     email = "phillip.sherlock@ufl.edu",
     role = c("aut", "cre"),
@@ -28,6 +28,7 @@ Description: Implements the stacked-imputation workflow for conditional
     Hornik & Zeileis, 2006 <doi:10.1198/106186006X133933>).
 License: GPL (>= 3)
 Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
     partykit (>= 1.2-0),

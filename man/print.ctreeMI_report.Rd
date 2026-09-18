@@ -7,14 +7,14 @@
 \method{print}{ctreeMI_report}(x, width = 76, ...)
 }
 \arguments{
-\item{x}{A `"ctreeMI_report"` object from [report_ctreeMI()].}
+\item{x}{A \code{"ctreeMI_report"} object from \code{\link[=report_ctreeMI]{report_ctreeMI()}}.}
 
 \item{width}{Wrapping width in characters.}
 
 \item{...}{Currently unused.}
 }
 \value{
-`x`, invisibly.
+\code{x}, invisibly.
 }
 \description{
 Print a Methods Paragraph

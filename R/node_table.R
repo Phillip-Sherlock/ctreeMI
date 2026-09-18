@@ -12,7 +12,7 @@ NULL
 #' Terminal-Node Summary With Effective Sample Sizes
 #'
 #' @description
-#' Summarises the nodes of a fitted tree: the split path leading to each node,
+#' Summarizes the nodes of a fitted tree: the split path leading to each node,
 #' its size in the stacked data, its effective size in original observations
 #' (stacked size divided by `M`), and node-level outcome summaries.
 #'

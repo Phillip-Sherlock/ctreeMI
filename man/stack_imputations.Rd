@@ -11,16 +11,16 @@ stack_imputations(data_list, imp_col = ".imp")
 representing M imputed versions of the same dataset.}
 
 \item{imp_col}{Character string. Name of the imputation-index column
-added to the stacked data (default `".imp"`). Set to `NULL` to
+added to the stacked data (default \code{".imp"}). Set to \code{NULL} to
 suppress this column.}
 }
 \value{
-A single data frame with `M * n` rows, where `n` is the number
-  of rows in each imputed dataset.
+A single data frame with \code{M * n} rows, where \code{n} is the number
+of rows in each imputed dataset.
 }
 \description{
 Concatenates a list of imputed data frames into a single "stacked" data
-frame. An imputation index column (`.imp`) is added to identify which
+frame. An imputation index column (\code{.imp}) is added to identify which
 imputed dataset each row originated from. This is the first step of the
 stacked-imputation workflow described in Rodgers et al. (2021) and
 applied to conditional inference trees in Sherlock et al. (2026).
@@ -35,12 +35,12 @@ table(stacked$.imp)
 }
 \references{
 Sherlock, P., et al. (2026). Beyond linear risk: A machine learning
-  approach to understanding perinatal depression in context.
-  *Multivariate Behavioral Research*, 1-16.
-  \doi{10.1080/00273171.2026.2661244}
+approach to understanding perinatal depression in context.
+\emph{Multivariate Behavioral Research}, 1-16.
+\doi{10.1080/00273171.2026.2661244}
 
 Rodgers, D. M., Jacobucci, R., & Grimm, K. J. (2021). A multiple
-  imputation approach for handling missing data in classification and
-  regression trees. *Journal of Behavioral Data Science*, 1(1), 127-153.
-  \doi{10.35566/jbds/v1n1/p6}
+imputation approach for handling missing data in classification and
+regression trees. \emph{Journal of Behavioral Data Science}, 1(1), 127-153.
+\doi{10.35566/jbds/v1n1/p6}
 }

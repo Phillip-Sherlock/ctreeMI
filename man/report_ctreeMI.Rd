@@ -7,13 +7,13 @@
 report_ctreeMI(object, digits = 3)
 }
 \arguments{
-\item{object}{A `ctreeMI` object from [ctree_stacked()].}
+\item{object}{A \code{ctreeMI} object from \code{\link[=ctree_stacked]{ctree_stacked()}}.}
 
 \item{digits}{Number of digits used in the node summaries.}
 }
 \value{
-An object of class `"ctreeMI_report"`: a list whose `text` element
-  is the paragraph, alongside the quantities it reports.
+An object of class \code{"ctreeMI_report"}: a list whose \code{text} element
+is the paragraph, alongside the quantities it reports.
 }
 \description{
 Generates a paragraph describing the analysis in the form usually required
@@ -32,5 +32,5 @@ report_ctreeMI(fit)
 
 }
 \seealso{
-[ctree_stacked()], [node_table()]
+\code{\link[=ctree_stacked]{ctree_stacked()}}, \code{\link[=node_table]{node_table()}}
 }

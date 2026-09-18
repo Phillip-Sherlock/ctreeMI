@@ -15,57 +15,57 @@ ctree_stacked(
 )
 }
 \arguments{
-\item{formula}{A model formula, passed to [partykit::ctree()].}
+\item{formula}{A model formula, passed to \code{\link[partykit:ctree]{partykit::ctree()}}.}
 
-\item{data}{A `mids` object from [mice::mice()], a list of imputed
+\item{data}{A \code{mids} object from \code{\link[mice:mice]{mice::mice()}}, a list of imputed
 data frames, or a single complete data frame. If a single complete
 data frame is supplied (no missing data handling needed), the function
-falls back to a standard [partykit::ctree()] call with a warning.}
+falls back to a standard \code{\link[partykit:ctree]{partykit::ctree()}} call with a warning.}
 
-\item{m}{Integer. Number of imputations to use. If `data` is a `mids`
+\item{m}{Integer. Number of imputations to use. If \code{data} is a \code{mids}
 object or a list, defaults to the number of datasets available.
-Ignored when `data` is a plain data frame.}
+Ignored when \code{data} is a plain data frame.}
 
 \item{alpha}{Numeric. The nominal significance threshold for node-level
 splitting (default 0.05). It is applied to p-values recomputed from
-node statistics that have been divided by `m`; `alpha` itself is not
+node statistics that have been divided by \code{m}; \code{alpha} itself is not
 rescaled. Must be strictly between 0 and 1.}
 
-\item{scale_minsize}{Logical. If `TRUE` (default), `minsplit` and
-`minbucket` are multiplied by `m` so they refer to original rather than
-stacked observations. The `partykit` defaults would otherwise permit
+\item{scale_minsize}{Logical. If \code{TRUE} (default), \code{minsplit} and
+\code{minbucket} are multiplied by \code{m} so they refer to original rather than
+stacked observations. The \code{partykit} defaults would otherwise permit
 terminal nodes holding fewer than one original observation.}
 
-\item{verbose}{Logical. If `TRUE` (default), prints a message summarising
+\item{verbose}{Logical. If \code{TRUE} (default), prints a message summarizing
 the stacking and correction applied.}
 
-\item{...}{Additional arguments passed to [partykit::ctree_control()].
-Note: `alpha` in `...` is ignored in favour of the `alpha` argument
+\item{...}{Additional arguments passed to \code{\link[partykit:ctree_control]{partykit::ctree_control()}}.
+Note: \code{alpha} in \code{...} is ignored in favor of the \code{alpha} argument
 above.}
 }
 \value{
-An object of class `c("ctreeMI", "constparty", "party")`. This
-  inherits all methods from [partykit::ctree()] output and additionally
-  carries a `ctreeMI_info` attribute with the following elements:
-  \describe{
-    \item{`m`}{Number of imputations used.}
-    \item{`n_original`}{Number of rows in a single imputed dataset.}
-    \item{`n_stacked`}{Total rows in the stacked dataset.}
-    \item{`alpha`}{The significance threshold applied to the rescaled
-      p-values.}
-    \item{`correction`}{Character, `"statistic/M"`.}
-    \item{`node_stats`}{Data frame of per-node raw statistics, degrees
-      of freedom, rescaled statistics, p-values, and retention.}
-    \item{`n_splits_before`, `n_splits_after`}{Splits before and after
-      the correction was applied.}
-    \item{`outcome_dim`}{Rank of the influence function of the response,
-      i.e. the degrees of freedom carried by a numeric or ordered
-      predictor.}
-    \item{`minsplit`, `minbucket`}{Minimum node sizes actually used, in
-      stacked rows.}
-    \item{`formula`}{The model formula.}
-    \item{`call`}{The matched call.}
-  }
+An object of class \code{c("ctreeMI", "constparty", "party")}. This
+inherits all methods from \code{\link[partykit:ctree]{partykit::ctree()}} output and additionally
+carries a \code{ctreeMI_info} attribute with the following elements:
+\describe{
+\item{\code{m}}{Number of imputations used.}
+\item{\code{n_original}}{Number of rows in a single imputed dataset.}
+\item{\code{n_stacked}}{Total rows in the stacked dataset.}
+\item{\code{alpha}}{The significance threshold applied to the rescaled
+p-values.}
+\item{\code{correction}}{Character, \code{"statistic/M"}.}
+\item{\code{node_stats}}{Data frame of per-node raw statistics, degrees
+of freedom, rescaled statistics, p-values, and retention.}
+\item{\code{n_splits_before}, \code{n_splits_after}}{Splits before and after
+the correction was applied.}
+\item{\code{outcome_dim}}{Rank of the influence function of the response,
+i.e. the degrees of freedom carried by a numeric or ordered
+predictor.}
+\item{\code{minsplit}, \code{minbucket}}{Minimum node sizes actually used, in
+stacked rows.}
+\item{\code{formula}}{The model formula.}
+\item{\code{call}}{The matched call.}
+}
 }
 \description{
 Fits a conditional inference tree (ctree) on stacked multiply imputed
@@ -80,7 +80,7 @@ imputation variability without requiring the pooling of structurally
 different trees.
 }
 \details{
-## Methodological background
+\subsection{Methodological background}{
 
 When data contain missing values, a common and principled approach is
 multiple imputation (Rubin, 1987), wherein M completed datasets are
@@ -102,38 +102,40 @@ interpretable tree. However, stacking inflates the nominal sample size
 by a factor of M, causing node-level test statistics to be similarly
 inflated and the tree to split more aggressively than warranted.
 
-Sherlock et al. (2026) proposed and validated the **Stack / M**
+Sherlock et al. (2026) proposed and validated the \strong{Stack / M}
 correction: each node-level test statistic computed on the stacked data
 is divided by M, the p-value is recomputed from the rescaled statistic,
 the Bonferroni adjustment for the number of candidate splitting
-variables is reapplied, and nodes that no longer meet `alpha` are
+variables is reapplied, and nodes that no longer meet \code{alpha} are
 pruned. See "Scope" and "Node-level calibration" below for the
 conditions under which the procedure has been examined and for the
-behaviour of its node-level test.
+behavior of its node-level test.
+}
 
-## Correction applied to the statistic, not to alpha
+\subsection{Correction applied to the statistic, not to alpha}{
 
-Rescaling the statistic is **not** equivalent to dividing the
-significance threshold by M. Writing `q(p, df)` for the chi-square
+Rescaling the statistic is \strong{not} equivalent to dividing the
+significance threshold by M. Writing \code{q(p, df)} for the chi-square
 quantile function, the two rules are:
 
 \itemize{
-  \item statistic rescaling (correct): reject when
-    `X > M * q(1 - alpha, df)`
-  \item threshold rescaling (incorrect): reject when
-    `X > q(1 - alpha / M, df)`
+\item statistic rescaling (correct): reject when
+\code{X > M * q(1 - alpha, df)}
+\item threshold rescaling (incorrect): reject when
+\code{X > q(1 - alpha / M, df)}
 }
 
-These coincide only at `M = 1`. At `df = 1`, `alpha = 0.05`, `M = 30`
-the first requires `X > 115.2` and the second only `X > 9.9`, so
+These coincide only at \code{M = 1}. At \code{df = 1}, \code{alpha = 0.05}, \code{M = 30}
+the first requires \code{X > 115.2} and the second only \code{X > 9.9}, so
 threshold rescaling under-corrects by an order of magnitude and grows
 substantially larger trees than the published method.
 
 Versions 0.1.0 and 0.2.0 of this package implemented threshold
 rescaling. Trees fitted with those versions are under-corrected and
 should be refitted.
+}
 
-## When to use this procedure
+\subsection{When to use this procedure}{
 
 The problem it solves is specific. Multiple imputation produces M
 completed datasets, and for most models their results are combined by
@@ -147,13 +149,13 @@ In the simulations archived at the DOI given below, the procedure
 recovered known structure more often than listwise deletion, surrogate
 splits, missingness incorporated in attributes, or single imputation,
 and produced the most stable partitions across independent sets of
-imputations. Its accuracy held across missingness rates of 15% to 45%
+imputations. Its accuracy held across missingness rates of 15\\% to 45\\%
 while each of those four declined, listwise deletion most steeply.
 Tree sizes tracked the true size closely wherever real structure was
 present, and were stable from M = 5 to M = 50.
 
 Two settings matter in practice. The outcome should be included in the
-imputation model, which `mice()` does by default: omitting it attenuates
+imputation model, which \code{mice()} does by default: omitting it attenuates
 the associations a tree is meant to find, at a cost described under
 "Node-level calibration" below. And M should follow the usual guidance
 for the fraction of missing information; M = 30 was used throughout
@@ -164,8 +166,9 @@ be present, since the miscalibration described below is concentrated
 under a true null. A single unreplicated subgroup found in data with no
 prior reason to expect one warrants the checks given below rather than
 the node-level p-value.
+}
 
-## Scope
+\subsection{Scope}{
 
 The procedure assumes the data are missing at random in the sense of
 Rubin (1976), as does the multiple imputation it is built on. In the
@@ -178,52 +181,59 @@ setting should be treated as provisional. The mechanism is rarely known
 in applied work, and MNAR cannot be distinguished from MAR using the
 observed data, so this is a statement about where the assumption is
 defensible rather than a condition that can be checked.
+}
 
-## Node-level calibration
+\subsection{Node-level calibration}{
 
 The node-level test is not calibrated to its nominal level when the
 imputation model conditions on the outcome. That is recommended
-practice, and it is what `mice()` does by default when run on a data
+practice, and it is what \code{mice()} does by default when run on a data
 frame containing the outcome. Under a true null the test rejects more
-often than `alpha` implies, increasingly so as the missingness rate
+often than \code{alpha} implies, increasingly so as the missingness rate
 rises. Omitting the outcome from the imputation model reverses this
 into conservatism rather than restoring calibration, and is not
 recommended, since it attenuates the associations a tree is meant to
 detect.
 
 Node-level p-values should therefore be read as approximate rather than
-nominal. Two checks are available in their place. [node_table()]
-reports the effective sample size behind each terminal node, in
-original rather than stacked observations, so a node resting on few
-original cases can be identified. And refitting on an independent set
-of imputations, then comparing the resulting partitions, indicates
-whether the structure is stable.
+nominal, and should not be reported as error rates. The recommended
+remedy is to treat the tree as discovery and test its partition on
+independent data with \code{\link[=confirm_ctreeMI]{confirm_ctreeMI()}}, which pools across
+imputations by Rubin's rules and so has valid error control;
+\code{\link[=discover_confirm]{discover_confirm()}} performs the whole sequence. Two further checks
+help in interpreting a fitted tree. \code{\link[=node_table]{node_table()}} reports the
+effective sample size behind each terminal node, in original rather
+than stacked observations, so a node resting on few original cases can
+be identified. And refitting on an independent set of imputations, then
+comparing the resulting partitions, indicates whether the structure is
+stable.
 
-Simulations characterising this behaviour are archived at
+Simulations characterizing this behavior are archived at
 \doi{10.5281/zenodo.21939940}.
 
 Documentation prior to version 1.0.1 described the correction as
-sub-nominal under MCAR. That characterisation comes from the
+sub-nominal under MCAR. That characterization comes from the
 simulations in Sherlock et al. (2026), which used a marginal imputation
 model conditioning on neither the outcome nor the remaining predictors.
 It does not hold under outcome-conditioned imputation.
+}
 
-## Usage with `mice`
+\subsection{Usage with \code{mice}}{
 
-```r
-library(mice)
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{library(mice)
 imp <- mice(my_data, m = 30, printFlag = FALSE)
 fit <- ctree_stacked(outcome ~ ., data = imp, alpha = 0.05)
 print(fit)
 plot(fit)
-```
+}\if{html}{\out{</div>}}
+}
 
-## Usage with a list of data frames
+\subsection{Usage with a list of data frames}{
 
-```r
-imp_list <- lapply(1:30, function(i) complete(imp, i))
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{imp_list <- lapply(1:30, function(i) complete(imp, i))
 fit <- ctree_stacked(outcome ~ ., data = imp_list, alpha = 0.05)
-```
+}\if{html}{\out{</div>}}
+}
 }
 \examples{
 \dontrun{
@@ -249,30 +259,30 @@ plot(fit)
 }
 \references{
 Sherlock, P., Mansolf, M., Hofheimer, J., Hockett, C. W., O'Connor, T. G.,
-  Roubinov, D., Graff, J. C., Lai, J.-S., Bush, N. R., Wright, R. J., &
-  Chiu, Y.-H. M. (2026). Beyond linear risk: A machine learning approach
-  to understanding perinatal depression in context.
-  *Multivariate Behavioral Research*, 1-16.
-  \doi{10.1080/00273171.2026.2661244}
+Roubinov, D., Graff, J. C., Lai, J.-S., Bush, N. R., Wright, R. J., &
+Chiu, Y.-H. M. (2026). Beyond linear risk: A machine learning approach
+to understanding perinatal depression in context.
+\emph{Multivariate Behavioral Research}, 1-16.
+\doi{10.1080/00273171.2026.2661244}
 
 Hothorn, T., Hornik, K., & Zeileis, A. (2006). Unbiased recursive
-  partitioning: A conditional inference framework. *Journal of
-  Computational and Graphical Statistics*, 15(3), 651-674.
-  \doi{10.1198/106186006X133933}
+partitioning: A conditional inference framework. \emph{Journal of
+Computational and Graphical Statistics}, 15(3), 651-674.
+\doi{10.1198/106186006X133933}
 
 Hothorn, T., & Zeileis, A. (2015). partykit: A modular toolkit for
-  recursive partitioning in R. *Journal of Machine Learning Research*,
-  16, 3905-3909.
+recursive partitioning in R. \emph{Journal of Machine Learning Research},
+16, 3905-3909.
 
 Rodgers, D. M., Jacobucci, R., & Grimm, K. J. (2021). A multiple
-  imputation approach for handling missing data in classification and
-  regression trees. *Journal of Behavioral Data Science*, 1(1), 127-153.
-  \doi{10.35566/jbds/v1n1/p6}
+imputation approach for handling missing data in classification and
+regression trees. \emph{Journal of Behavioral Data Science}, 1(1), 127-153.
+\doi{10.35566/jbds/v1n1/p6}
 
-Rubin, D. B. (1987). *Multiple imputation for nonresponse in surveys.*
-  Wiley.
+Rubin, D. B. (1987). \emph{Multiple imputation for nonresponse in surveys.}
+Wiley.
 }
 \seealso{
-[partykit::ctree()], [partykit::ctree_control()], [mice::mice()],
-[stack_imputations()], [rescale_statistic()], [prune_stackM()], [node_table()]
+\code{\link[partykit:ctree]{partykit::ctree()}}, \code{\link[partykit:ctree_control]{partykit::ctree_control()}}, \code{\link[mice:mice]{mice::mice()}},
+\code{\link[=stack_imputations]{stack_imputations()}}, \code{\link[=rescale_statistic]{rescale_statistic()}}, \code{\link[=prune_stackM]{prune_stackM()}}, \code{\link[=node_table]{node_table()}}
 }

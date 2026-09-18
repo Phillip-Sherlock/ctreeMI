@@ -1,7 +1,7 @@
 #' ctreeMI: Conditional Inference Trees with Multiple Imputation
 #'
 #' @description
-#' `ctreeMI` implements the **stacked-imputation / Stack ? M** workflow for
+#' `ctreeMI` implements the **stacked-imputation / Stack / M** workflow for
 #' conditional inference trees (ctree) described in Sherlock et al. (2026).
 #'
 #' ## The problem
@@ -22,19 +22,40 @@
 #' by M, so test statistics at each node are similarly inflated and the tree
 #' over-splits.
 #'
-#' **Stack ? M correction**: Divide the node-level significance threshold by
-#' M (`alpha_corrected = alpha / M`) before the pruning decision. This is
-#' equivalent to dividing each node's test statistic by M before comparing
-#' it to the Bonferroni-corrected critical value. Sherlock et al. (2026)
-#' validated this approach via Monte Carlo simulation under MCAR, showing
-#' sub-nominal (conservative) type-I error and acceptable power.
+#' **Stack / M correction**: divide each node-level test statistic by M,
+#' recompute its p-value from the chi-square reference distribution, reapply
+#' the multiplicity adjustment across candidate variables, and compress the
+#' tree bottom-up. This is not the same as dividing the significance
+#' threshold by M; the two rules coincide only at M = 1, and threshold
+#' rescaling under-corrects by an order of magnitude at M = 30. See
+#' [ctree_stacked()] for the derivation.
 #'
-#' ## Main function
+#' ## What the correction does and does not do
 #'
-#' The primary user-facing function is [ctree_stacked()]. It accepts a
-#' `mids` object from [mice::mice()], a list of imputed data frames, or a
-#' plain data frame, and returns a fitted tree with full `partykit`
-#' compatibility.
+#' The correction removes the inflation attributable to the stacked sample
+#' size. It does not yield a calibrated node-level test: when the imputation
+#' model conditions on the outcome, which is recommended practice, the test
+#' rejects more often than its nominal level implies. The procedure recovers
+#' known structure and produces reproducible partitions well, but its
+#' node-level p-values are not error rates. See the "Node-level calibration"
+#' section of [ctree_stacked()].
+#'
+#' ## Recommended workflow
+#'
+#' Treat the tree as discovery and confirm it on independent data.
+#' [discover_confirm()] splits the sample, imputes each half separately,
+#' fits the tree on one half, and tests the resulting partition on the other
+#' with a procedure that pools across imputations by Rubin's rules and so has
+#' valid error control. [split_holdout()] and [confirm_ctreeMI()] expose the
+#' steps individually.
+#'
+#' ## Main functions
+#'
+#' [ctree_stacked()] fits the tree. It accepts a `mids` object from
+#' [mice::mice()], a list of imputed data frames, or a plain data frame, and
+#' returns a fitted tree with full `partykit` compatibility.
+#' [confirm_ctreeMI()] tests a fitted tree's partition on held-out data.
+#' [node_table()] reports effective sample sizes per terminal node.
 #'
 #' ## Citation
 #'

@@ -7,12 +7,12 @@
 \method{print}{ctreeMI_nodes}(x, ...)
 }
 \arguments{
-\item{x}{A `"ctreeMI_nodes"` object from [node_table()].}
+\item{x}{A \code{"ctreeMI_nodes"} object from \code{\link[=node_table]{node_table()}}.}
 
-\item{...}{Passed to [print.data.frame()].}
+\item{...}{Passed to \code{\link[=print.data.frame]{print.data.frame()}}.}
 }
 \value{
-`x`, invisibly.
+\code{x}, invisibly.
 }
 \description{
 Print a Node Table

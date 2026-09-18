@@ -4,17 +4,22 @@
 
 ## Test environments
 
-* Ubuntu 24.04 (local), R 4.3.3
-* GitHub Actions: macOS release, Windows release, Ubuntu release / devel / oldrel-1
-* win-builder (devel and release)
+* macOS Sonoma 14.8.4 (local), R 4.4.2, aarch64-apple-darwin20
+* win-builder (R-devel and R-release)
 
 ## Reason for this submission
 
-Documentation only. No code has changed and results are identical to 1.0.0.
+New functionality and a documentation correction.
 
-The DESCRIPTION and ?ctree_stacked described the type-I error behaviour of the
-procedure as sub-nominal. That is accurate for the imputation model used in
-the paper the method comes from, which conditioned on neither the outcome nor
-the remaining predictors, but not for the outcome-conditioned imputation
-recommended in practice and produced by mice() defaults. The documentation now
-states the behaviour under both, and the change is recorded in NEWS.md.
+Three new exported functions (split_holdout, confirm_ctreeMI,
+discover_confirm) implement a discover-then-confirm workflow in which a
+tree fitted by ctree_stacked() is tested on independently imputed held-out
+data using mice::D1(). No existing function has changed.
+
+The package-level help page described the correction as dividing the
+significance threshold by M, which is not what the package does and is
+contradicted by ?ctree_stacked. It now describes the mechanism correctly.
+
+## Downstream dependencies
+
+None.

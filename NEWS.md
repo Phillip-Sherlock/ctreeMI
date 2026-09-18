@@ -1,3 +1,84 @@
+# ctreeMI 1.1.0
+
+## New: discover-then-confirm workflow
+
+Three functions implement the workflow recommended in the documentation of
+`ctree_stacked()`: treat the tree as discovery, and test its partition on
+independent data with a procedure that has valid error control.
+
+* `split_holdout()` partitions a data frame into discovery and confirmation
+  sets on original observations, before imputation, so that each half can
+  be imputed separately.
+* `confirm_ctreeMI()` applies the terminal-node rules of a fitted tree to an
+  independently imputed confirmation sample and tests whether the outcome
+  differs across the resulting subgroups. The test pools across imputations
+  by the Li-Raghunathan-Rubin procedure (`mice::D1()`) rather than
+  stacking, so the between-imputation variance that miscalibrates the
+  stacked node-level test is properly accounted for. Two families of test
+  are returned: an omnibus test that the outcome differs across terminal
+  nodes at all, and a per-split test for every internal node, in which the
+  confirmation observations inside that node are divided by its own rule
+  and the children compared. The per-split tests identify which individual
+  splits survive independent data, and are Holm-adjusted across internal
+  nodes by default. Pooled per-node estimates are returned alongside.
+* `discover_confirm()` runs the full sequence from a raw data frame.
+
+The confirmation test addresses two problems at once: the selection effect
+of testing subgroups on the data used to find them, and the miscalibration
+of the stacked node-level test under outcome-conditioned imputation.
+
+## Documentation now renders as written
+
+The roxygen comments throughout the package use markdown syntax for
+emphasis, code, cross-references and section headings, but markdown
+processing had never been enabled, so these rendered literally on CRAN.
+It is now enabled. A percent sign in `?ctree_stacked` that Rd read as a
+comment marker, silently truncating a sentence in the 1.0.1 manual, is now
+escaped.
+
+## Corrected package-level documentation
+
+`?ctreeMI` described the correction as dividing the significance threshold
+by M. That is threshold rescaling, which versions 0.1.0 and 0.2.0
+implemented and which under-corrects by an order of magnitude at M = 30;
+the package has applied the correction to the statistic since 0.3.0, and
+`?ctree_stacked` says so. The package-level page now describes the
+mechanism correctly, no longer characterizes the node-level test as
+conservative, and points to the confirmation workflow.
+
+# ctreeMI 1.0.1
+
+Documentation only. No function has changed and results are identical to
+1.0.0.
+
+## Corrected description of node-level calibration
+
+`?ctree_stacked` reported sub-nominal, and therefore conservative, type-I
+error under MCAR. That holds under the marginal imputation model used in the
+simulations of Sherlock et al. (2026), which conditioned on neither the
+outcome nor the remaining predictors. It does not hold under
+outcome-conditioned imputation, which is recommended practice and is what
+`mice()` does by default when the outcome is present in the data frame. In
+that setting the node-level test rejects more often than `alpha` implies,
+increasingly so as the missingness rate rises.
+
+The documentation now states this, notes that omitting the outcome from the
+imputation model reverses the direction rather than restoring calibration,
+and points to `node_table()` and to refitting on independent imputations as
+the checks to use in place of node-level p-values.
+
+The package DESCRIPTION previously described the result as "a conservative
+but interpretable single tree". The word "conservative" has been removed for
+the same reason.
+
+## Added a scope section
+
+`?ctree_stacked` now states that the procedure assumes missingness at random,
+and that recovery degrades under MNAR for every imputation-based approach.
+
+Supporting simulations are archived at
+<https://doi.org/10.5281/zenodo.21939940>.
+
 # ctreeMI 1.0.0
 
 0.3.0 introduced the right correction. This release makes it survive contact

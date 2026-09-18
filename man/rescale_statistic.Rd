@@ -14,33 +14,33 @@ data.}
 
 \item{df}{Numeric. Degrees of freedom of the reference chi-square
 distribution: the outcome dimension for a numeric or ordered predictor,
-`(L - 1)` times the outcome dimension for an unordered factor with `L`
-levels. See [prune_stackM()], which derives this for you.}
+\code{(L - 1)} times the outcome dimension for an unordered factor with \code{L}
+levels. See \code{\link[=prune_stackM]{prune_stackM()}}, which derives this for you.}
 }
 \value{
-A list with `statistic_rescaled` and `p_value`.
+A list with \code{statistic_rescaled} and \code{p_value}.
 }
 \description{
 Divides a node-level chi-square test statistic by the number of imputations
-`M` and recomputes the corresponding p-value. This is the Stack / M
+\code{M} and recomputes the corresponding p-value. This is the Stack / M
 correction of Sherlock et al. (2026).
 }
 \details{
-Stacking `M` imputed datasets produces `M * n` rows, and a chi-square
+Stacking \code{M} imputed datasets produces \code{M * n} rows, and a chi-square
 statistic computed on the stacked data scales approximately linearly with
-`M`. Dividing the statistic by `M` returns it to the scale of a single
+\code{M}. Dividing the statistic by \code{M} returns it to the scale of a single
 imputed dataset before the p-value is computed.
 
-This is **not** the same as dividing the significance threshold by `M`. The
-two rules coincide only at `M = 1`:
+This is \strong{not} the same as dividing the significance threshold by \code{M}. The
+two rules coincide only at \code{M = 1}:
 
 \itemize{
-  \item Statistic rescaling rejects when `X > M * qchisq(1 - alpha, df)`.
-  \item Threshold rescaling rejects when `X > qchisq(1 - alpha / M, df)`.
+\item Statistic rescaling rejects when \code{X > M * qchisq(1 - alpha, df)}.
+\item Threshold rescaling rejects when \code{X > qchisq(1 - alpha / M, df)}.
 }
 
-For `df = 1`, `alpha = 0.05` and `M = 30`, the first requires `X > 115.2`
-and the second only `X > 9.9`. Versions 0.1.0 and 0.2.0 implemented the
+For \code{df = 1}, \code{alpha = 0.05} and \code{M = 30}, the first requires \code{X > 115.2}
+and the second only \code{X > 9.9}. Versions 0.1.0 and 0.2.0 implemented the
 second rule.
 }
 \examples{
@@ -49,9 +49,9 @@ rescale_statistic(115.2, m = 30, df = 1)
 }
 \references{
 Sherlock, P., Mansolf, M., Hofheimer, J., Hockett, C. W., O'Connor, T. G.,
-  Roubinov, D., Graff, J. C., Lai, J.-S., Bush, N. R., Wright, R. J., &
-  Chiu, Y.-H. M. (2026). Beyond linear risk: A machine learning approach to
-  understanding perinatal depression in context.
-  *Multivariate Behavioral Research*, 1-16.
-  \doi{10.1080/00273171.2026.2661244}
+Roubinov, D., Graff, J. C., Lai, J.-S., Bush, N. R., Wright, R. J., &
+Chiu, Y.-H. M. (2026). Beyond linear risk: A machine learning approach to
+understanding perinatal depression in context.
+\emph{Multivariate Behavioral Research}, 1-16.
+\doi{10.1080/00273171.2026.2661244}
 }

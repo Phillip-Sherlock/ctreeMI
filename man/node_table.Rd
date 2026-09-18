@@ -7,31 +7,31 @@
 node_table(object, terminal_only = TRUE, max_levels = NULL, digits = 3)
 }
 \arguments{
-\item{object}{A `ctreeMI` object from [ctree_stacked()], or any `party`
-object (in which case `M` is taken to be 1).}
+\item{object}{A \code{ctreeMI} object from \code{\link[=ctree_stacked]{ctree_stacked()}}, or any \code{party}
+object (in which case \code{M} is taken to be 1).}
 
 \item{terminal_only}{Logical. Report terminal nodes only (default), or every
 node including the root.}
 
-\item{max_levels}{Integer or `NULL`. Truncate factor level sets longer than
+\item{max_levels}{Integer or \code{NULL}. Truncate factor level sets longer than
 this in the printed split path.}
 
 \item{digits}{Number of digits for the outcome summaries.}
 }
 \value{
-A data frame of class `"ctreeMI_nodes"` with one row per node:
-  `node_id`, `depth`, `n_stacked`, `effective_n`, any outcome summaries,
-  `path`, and a `conditions` list column holding the split conditions
-  individually.
+A data frame of class \code{"ctreeMI_nodes"} with one row per node:
+\code{node_id}, \code{depth}, \code{n_stacked}, \code{effective_n}, any outcome summaries,
+\code{path}, and a \code{conditions} list column holding the split conditions
+individually.
 }
 \description{
-Summarises the nodes of a fitted tree: the split path leading to each node,
+Summarizes the nodes of a fitted tree: the split path leading to each node,
 its size in the stacked data, its effective size in original observations
-(stacked size divided by `M`), and node-level outcome summaries.
+(stacked size divided by \code{M}), and node-level outcome summaries.
 }
 \details{
-Terminal-node sample sizes printed by `partykit` refer to the stacked data,
-in which every observation appears `M` times. `effective_n` divides by `M`
+Terminal-node sample sizes printed by \code{partykit} refer to the stacked data,
+in which every observation appears \code{M} times. \code{effective_n} divides by \code{M}
 to give the number of original observations behind each node. Node-level
 means and proportions need no such adjustment: they are already averages
 over the imputations.
@@ -47,5 +47,5 @@ node_table(fit)
 
 }
 \seealso{
-[ctree_stacked()], [report_ctreeMI()]
+\code{\link[=ctree_stacked]{ctree_stacked()}}, \code{\link[=report_ctreeMI]{report_ctreeMI()}}
 }

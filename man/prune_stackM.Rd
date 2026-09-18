@@ -7,10 +7,10 @@
 prune_stackM(tree, m, alpha = 0.05, verbose = TRUE)
 }
 \arguments{
-\item{tree}{A `party`/`constparty` object fitted by [partykit::ctree()] on
-stacked data, with `teststat = "quadratic"` and `testtype` either
-`"Univariate"` or `"Bonferroni"`. Both are handled: whether the stored
-p-values already carry `partykit`'s multiplicity adjustment is read from
+\item{tree}{A \code{party}/\code{constparty} object fitted by \code{\link[partykit:ctree]{partykit::ctree()}} on
+stacked data, with \code{teststat = "quadratic"} and \code{testtype} either
+\code{"Univariate"} or \code{"Bonferroni"}. Both are handled: whether the stored
+p-values already carry \code{partykit}'s multiplicity adjustment is read from
 the fitted control rather than assumed.}
 
 \item{m}{Integer. Number of imputations.}
@@ -20,49 +20,48 @@ the fitted control rather than assumed.}
 \item{verbose}{Logical. Report how many splits were retained.}
 }
 \value{
-A list with the pruned `tree` and a `node_stats` data frame with one
-  row per internal node of the unpruned tree, recording the variable split
-  on, its raw and rescaled statistics, the degrees of freedom and how they
-  were obtained, the p-values before and after correction, the smallest
-  corrected p-value over all candidates at that node, and whether the split
-  was retained. The full per-candidate table is attached as
-  `attr(node_stats, "candidates")`.
+A list with the pruned \code{tree} and a \code{node_stats} data frame with one
+row per internal node of the unpruned tree, recording the variable split
+on, its raw and rescaled statistics, the degrees of freedom and how they
+were obtained, the p-values before and after correction, the smallest
+corrected p-value over all candidates at that node, and whether the split
+was retained. The full per-candidate table is attached as
+\code{attr(node_stats, "candidates")}.
 }
 \description{
 Applies the Stack / M correction of Sherlock et al. (2026) to a conditional
 inference tree fitted on stacked multiply imputed data. Every node-level
-test statistic is divided by `M`, the p-values are recomputed from the
-chi-square reference distribution `ctree` uses, the multiplicity adjustment
+test statistic is divided by \code{M}, the p-values are recomputed from the
+chi-square reference distribution \code{ctree} uses, the multiplicity adjustment
 over candidate splitting variables is reapplied, and the tree is compressed
 bottom-up.
 }
-\details{
-# What is tested
-
-`ctree` splits a node when *any* candidate variable meets `alpha`, so that
+\section{What is tested}{
+\code{ctree} splits a node when \emph{any} candidate variable meets \code{alpha}, so that
 is the rule reapplied here: all candidates tested at the node are rescaled
 and the smallest corrected p-value decides. Testing only the variable that
 was split on would not be equivalent, because candidates carry different
 degrees of freedom and rescaling can reorder them.
+}
 
-# How the tree is compressed
-
+\section{How the tree is compressed}{
 Pruning is bottom-up, as in the analysis for the paper. An internal node is
 collapsed only once all of its own internal descendants have been collapsed,
 so a node whose descendant survives the correction keeps its split.
+}
 
-# Degrees of freedom
-
-With `teststat = "quadratic"` the node-level statistic is chi-square with
-`df` equal to the rank of the covariance matrix of the linear statistic:
+\section{Degrees of freedom}{
+With \code{teststat = "quadratic"} the node-level statistic is chi-square with
+\code{df} equal to the rank of the covariance matrix of the linear statistic:
 the outcome dimension for a numeric or ordered predictor (1 for a
-univariate outcome, 2 for a bivariate outcome, and so on), and `(L - 1)`
-times the outcome dimension for an unordered factor with `L` levels present
+univariate outcome, 2 for a bivariate outcome, and so on), and \code{(L - 1)}
+times the outcome dimension for an unordered factor with \code{L} levels present
 in the node. These are derived for every node and every candidate variable,
-by inverting the (statistic, p-value) pairs `partykit` stored and falling
+by inverting the (statistic, p-value) pairs \code{partykit} stored and falling
 back on the structural rule where the stored p-value has underflowed to
 zero, which happens routinely on stacked data.
 }
+
 \examples{
 set.seed(1)
 n <- 300
@@ -76,7 +75,7 @@ out$node_stats
 }
 \references{
 Sherlock, P., et al. (2026). Beyond linear risk: A machine learning
-  approach to understanding perinatal depression in context.
-  *Multivariate Behavioral Research*, 1-16.
-  \doi{10.1080/00273171.2026.2661244}
+approach to understanding perinatal depression in context.
+\emph{Multivariate Behavioral Research}, 1-16.
+\doi{10.1080/00273171.2026.2661244}
 }
