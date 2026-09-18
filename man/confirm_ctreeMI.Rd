@@ -9,7 +9,8 @@ confirm_ctreeMI(
   data,
   outcome_type = "auto",
   min_node = 5L,
-  adjust = "holm"
+  adjust = "holm",
+  conf.level = 0.95
 )
 }
 \arguments{
@@ -31,6 +32,9 @@ reported but excluded from the test. Default 5.}
 \item{adjust}{Method for adjusting the per-split p-values across the
 internal nodes of the tree, passed to \code{\link[stats:p.adjust]{stats::p.adjust()}}. Default
 \code{"holm"}. Use \code{"none"} to report unadjusted values.}
+
+\item{conf.level}{Confidence level for the pooled contrast reported with
+each split. Default 0.95.}
 }
 \value{
 An object of class \code{"ctreeMI_confirm"}: a list with elements
@@ -39,10 +43,12 @@ An object of class \code{"ctreeMI_confirm"}: a list with elements
 \code{F}, \code{df1}, \code{df2}, \code{p}, and \code{riv}, the relative increase in
 variance due to nonresponse.}
 \item{\code{splits}}{A data frame with one row per internal node and
-outcome: \code{node_id}, \code{depth}, \code{split_var}, \code{outcome}, \code{F}, \code{df1},
-\code{df2}, \code{p}, \code{p_adj}, and \code{n_confirm} (mean observations in the
-parent node per imputation). \code{NA} where a child node fell below
-\code{min_node} in some imputation.}
+outcome: \code{node_id}, \code{depth}, \code{split_var}, \code{rule} (the split as
+written), \code{outcome}, \code{contrast} with \code{lower} and \code{upper} (the
+pooled difference between the children and its confidence
+interval), \code{F}, \code{df1}, \code{df2}, \code{p}, \code{p_adj}, and \code{n_confirm} (mean
+observations in the parent node per imputation). \code{NA} where a child
+node fell below \code{min_node} in some imputation.}
 \item{\code{nodes}}{A data frame of pooled per-node estimates: \code{node_id},
 \code{outcome}, \code{estimate} (mean or proportion), \code{se}, \code{n_confirm}
 (mean observations per imputation), and \code{tested}.}
@@ -99,6 +105,13 @@ contrast, and the test is valid. A split whose children do not differ in
 independent data is one the discovery tree should not have made. The
 per-split \emph{p} values are adjusted across internal nodes by the
 method in \code{adjust}.
+
+Each split is also reported with the pooled difference between its
+children and a confidence interval, on the scale of the outcome for a
+continuous response and as a log odds ratio for a binary one. These are
+the quantities to report: the p-value says whether the split survived,
+the contrast says how much the subgroups differ and how precisely that is
+known. \code{\link[=prune_unconfirmed]{prune_unconfirmed()}} collapses the splits that did not survive.
 
 A split below a non-confirmed split has no clear interpretation, since
 the partition it refines was not itself supported; the \code{depth} column

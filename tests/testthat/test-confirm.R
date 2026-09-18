@@ -197,3 +197,75 @@ test_that("confirmation imputations are independent of discovery imputations", {
   expect_length(intersect(rownames(res$split$discover),
                           rownames(res$split$confirm)), 0)
 })
+
+test_that("per-split output carries the rule and a pooled contrast", {
+  skip_if_not_installed("mice")
+  skip_if_not_installed("partykit")
+  d  <- make_confirm_data(n = 700, signal = 1.5)
+  p  <- split_holdout(d, seed = 55)
+  id <- impute_list(p$discover, seed = 55)
+  ic <- impute_list(p$confirm,  seed = 65)
+  tree <- ctree_stacked(y ~ x1 + x2 + x3, data = id, verbose = FALSE)
+  skip_if(length(partykit::nodeids(tree, terminal = TRUE)) < 2)
+
+  cf <- confirm_ctreeMI(tree, ic)
+  expect_true(all(c("rule", "contrast", "lower", "upper") %in% names(cf$splits)))
+  root <- cf$splits[cf$splits$node_id == 1L, ]
+  expect_match(root$rule, "x1")           # rule names the variable and threshold
+  expect_true(is.finite(root$contrast))
+  expect_lt(root$lower, root$upper)        # interval is ordered
+  expect_true(root$lower > 0 || root$upper < 0)  # excludes zero for a real split
+  expect_output(print(cf), "difference")
+})
+
+test_that("prune_unconfirmed keeps confirmed splits and drops the rest", {
+  skip_if_not_installed("mice")
+  skip_if_not_installed("partykit")
+  d  <- make_confirm_data(n = 800, signal = 1.5, seed = 71)
+  p  <- split_holdout(d, seed = 71)
+  id <- impute_list(p$discover, seed = 71)
+  ic <- impute_list(p$confirm,  seed = 81)
+  tree <- ctree_stacked(y ~ x1 + x2 + x3, data = id, verbose = FALSE)
+  skip_if(length(partykit::nodeids(tree, terminal = TRUE)) < 2)
+
+  cf  <- confirm_ctreeMI(tree, ic)
+  out <- prune_unconfirmed(tree, cf)
+  expect_s3_class(out, "ctreeMI")
+  # a real signal should survive, so the pruned tree keeps at least one split
+  expect_gte(length(partykit::nodeids(out, terminal = TRUE)), 2)
+  # never larger than the tree it came from
+  expect_lte(length(partykit::nodeids(out, terminal = TRUE)),
+             length(partykit::nodeids(tree, terminal = TRUE)))
+  expect_false(is.null(attr(out, "ctreeMI_info")$confirmed))
+})
+
+test_that("prune_unconfirmed collapses everything when nothing confirms", {
+  skip_if_not_installed("mice")
+  skip_if_not_installed("partykit")
+  d  <- make_confirm_data(n = 800, signal = 1.5, seed = 73)
+  p  <- split_holdout(d, seed = 73)
+  id <- impute_list(p$discover, seed = 73)
+  tree <- ctree_stacked(y ~ x1 + x2 + x3, data = id, verbose = FALSE)
+  skip_if(length(partykit::nodeids(tree, terminal = TRUE)) < 2)
+
+  # confirm against data with no structure at all
+  null_c <- make_confirm_data(n = 400, signal = 0, seed = 74)
+  cf  <- confirm_ctreeMI(tree, impute_list(null_c, seed = 84))
+  out <- prune_unconfirmed(tree, cf)
+  expect_equal(length(partykit::nodeids(out, terminal = TRUE)), 1L)
+})
+
+test_that("report_confirm produces a methods paragraph", {
+  skip_if_not_installed("mice")
+  d   <- make_confirm_data(n = 600, signal = 1.5)
+  res <- discover_confirm(y ~ x1 + x2 + x3, data = d, m = 6, seed = 77)
+  skip_if(is.null(res$confirmation))
+  rp <- report_confirm(res)
+  expect_s3_class(rp, "ctreeMI_report")
+  expect_type(rp$text, "character")
+  expect_match(rp$text, "discovery set")
+  expect_match(rp$text, "confirmation set")
+  expect_match(rp$text, "Li")
+  expect_equal(rp$n_discover, nrow(res$split$discover))
+  expect_output(print(rp), "discovery set")
+})

@@ -22,6 +22,16 @@ independent data with a procedure that has valid error control.
   splits survive independent data, and are Holm-adjusted across internal
   nodes by default. Pooled per-node estimates are returned alongside.
 * `discover_confirm()` runs the full sequence from a raw data frame.
+* `prune_unconfirmed()` returns the tree with every split that failed to
+  confirm collapsed, so the partition that survived can be reported and
+  plotted directly.
+* `report_confirm()` generates a methods paragraph describing the design,
+  in the idiom of `report_ctreeMI()`.
+
+Each split is reported with the pooled difference between its children and
+a confidence interval, alongside the test. The package argues that
+node-level p-values should not be read as error rates; it would be
+inconsistent to report only p-values here.
 
 The confirmation test addresses two problems at once: the selection effect
 of testing subgroups on the data used to find them, and the miscalibration

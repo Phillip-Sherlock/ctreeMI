@@ -11,10 +11,11 @@
 
 New functionality and a documentation correction.
 
-Three new exported functions (split_holdout, confirm_ctreeMI,
-discover_confirm) implement a discover-then-confirm workflow in which a
-tree fitted by ctree_stacked() is tested on independently imputed held-out
-data using mice::D1(). No existing function has changed.
+Five new exported functions (split_holdout, confirm_ctreeMI,
+discover_confirm, prune_unconfirmed, report_confirm) implement a
+discover-then-confirm workflow in which a tree fitted by ctree_stacked() is
+tested on independently imputed held-out data using mice::D1(). No existing
+function has changed.
 
 The package-level help page described the correction as dividing the
 significance threshold by M, which is not what the package does and is
