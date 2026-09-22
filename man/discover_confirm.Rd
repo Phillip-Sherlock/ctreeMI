@@ -10,9 +10,11 @@ discover_confirm(
   prop = 0.5,
   m = 30L,
   strata = NULL,
+  cluster = NULL,
   seed = NULL,
   alpha = 0.05,
   mice_args = list(),
+  vcov_type = "HC1",
   ...
 )
 }
@@ -27,13 +29,23 @@ discover_confirm(
 
 \item{strata}{Optional stratification column for the split.}
 
+\item{cluster}{Optional name of a column identifying a higher-level unit.
+When given, the split keeps every unit intact on one side, the unit
+identifier is excluded from the imputation model, and the confirmation
+test uses a cluster-robust variance. See \code{\link[=split_holdout]{split_holdout()}} and
+\code{\link[=confirm_ctreeMI]{confirm_ctreeMI()}}.}
+
 \item{seed}{Optional integer seed. The confirmation imputation uses
 \code{seed + 1L} so that the two halves are imputed with different streams.}
 
 \item{alpha}{Nominal level for the discovery tree. Default 0.05.}
 
 \item{mice_args}{A list of additional arguments passed to
-\code{\link[mice:mice]{mice::mice()}} for both halves.}
+\code{\link[mice:mice]{mice::mice()}} for both halves. If it contains a \code{predictorMatrix},
+that matrix is used as given and \code{cluster} is not removed from it.}
+
+\item{vcov_type}{Passed to \code{\link[=confirm_ctreeMI]{confirm_ctreeMI()}}; ignored unless \code{cluster}
+is given.}
 
 \item{...}{Further arguments passed to \code{\link[=ctree_stacked]{ctree_stacked()}}.}
 }

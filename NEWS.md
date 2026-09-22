@@ -1,3 +1,36 @@
+# ctreeMI 1.2.0
+
+## Clustered data
+
+`split_holdout()` and `discover_confirm()` gain a `cluster` argument. When
+observations are nested in a higher-level unit such as a school or district,
+the split now assigns whole units to one half or the other, so that no unit
+contributes to both the discovery and confirmation samples. Stratification
+by a cluster-level variable is supported. `discover_confirm()` also removes
+the cluster identifier from the imputation model, where it would otherwise
+be treated as a predictor.
+
+`confirm_ctreeMI()` gains the same `cluster` argument. When given, every
+fitted model's covariance matrix is replaced by a cluster-robust estimate
+from `sandwich::vcovCL()` before pooling, so that the omnibus test, the
+per-split tests, the contrasts and the node estimates all account for
+within-cluster correlation. The number of clusters behind each node and
+each split is reported. A warning is issued below twenty clusters.
+
+## Pooling is now internal, with small-sample degrees of freedom
+
+The Li-Raghunathan-Rubin test and Rubin's rules are implemented within the
+package rather than delegated to `mice::D1()` and `mice::pool()`, which
+call `vcov()` on each model internally and so cannot accept a
+cluster-robust covariance. The multivariate test carries the Reiter (2007)
+small-sample adjustment and the scalar contrasts the Barnard-Rubin (1999)
+adjustment, as mice does; with `cluster = NULL` the results are identical
+to the mice implementation, and a test asserts this to six decimals. When
+clustered, the complete-data degrees of freedom are taken as the number of
+clusters minus one, so the reference distributions grow more conservative
+as clusters become few. `sandwich` is a suggested rather than imported
+dependency, required only when `cluster` is used.
+
 # ctreeMI 1.1.0
 
 ## New: discover-then-confirm workflow

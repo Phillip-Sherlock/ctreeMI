@@ -4,7 +4,7 @@
 \alias{split_holdout}
 \title{Split Data Into Discovery and Confirmation Sets}
 \usage{
-split_holdout(data, prop = 0.5, strata = NULL, seed = NULL)
+split_holdout(data, prop = 0.5, strata = NULL, cluster = NULL, seed = NULL)
 }
 \arguments{
 \item{data}{A data frame, typically containing missing values.}
@@ -15,14 +15,21 @@ Default 0.5.}
 \item{strata}{Optional name of a column on which to stratify the split,
 so that its distribution is preserved in both halves. Ordinarily the
 outcome, if categorical. Rows with a missing value in this column are
-allocated at random.}
+allocated at random. When \code{cluster} is given, \code{strata} must be constant
+within each cluster, and the clusters are stratified.}
+
+\item{cluster}{Optional name of a column identifying a higher-level unit
+such as a school, district or site. When given, whole clusters are
+assigned to one half or the other, so that no cluster contributes
+observations to both. \code{prop} then refers to the proportion of clusters.}
 
 \item{seed}{Optional integer seed.}
 }
 \value{
 A list of class \code{"ctreeMI_split"} with elements \code{discover} and
-\code{confirm}, each a data frame, and \code{index}, the row indices of \code{data}
-assigned to the discovery set.
+\code{confirm}, each a data frame; \code{index}, the row indices of \code{data}
+assigned to the discovery set; \code{cluster}, the cluster column name or
+\code{NULL}; and, when clustered, \code{n_clusters} for each half.
 }
 \description{
 Partitions a data frame into two disjoint subsets of original
@@ -36,6 +43,19 @@ and before any imputation. This matters. Imputing the full data once and
 then splitting leaves each half's imputed values informed by the other
 half's outcomes, which compromises the independence the confirmation
 step relies on. Impute the two halves separately.
+\subsection{Clustered data}{
+
+When observations are nested in higher-level units, splitting rows at
+random places members of the same unit on both sides, and the
+confirmation sample is then not independent of the discovery sample in
+the way the test assumes. Passing the unit identifier as \code{cluster} keeps
+every unit intact on one side. The confirmation test in
+\code{\link[=confirm_ctreeMI]{confirm_ctreeMI()}} should then use a cluster-robust variance by passing
+the same \code{cluster} argument there.
+
+With few clusters the two halves may be unequal in rows even when equal
+in clusters. The returned \code{n_clusters} reports the count on each side.
+}
 }
 \examples{
 set.seed(1)

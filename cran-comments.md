@@ -9,17 +9,16 @@
 
 ## Reason for this submission
 
-New functionality and a documentation correction.
+New functionality. The discover-then-confirm workflow introduced in 1.1.0
+now supports clustered data: split_holdout() and discover_confirm() can
+assign whole clusters to one half of the split, and confirm_ctreeMI() can
+use a cluster-robust variance from sandwich::vcovCL() in every pooled test.
+The Rubin pooling is now implemented internally so that an arbitrary
+covariance matrix can be supplied; a test confirms agreement with mice::D1()
+in the unclustered case.
 
-Five new exported functions (split_holdout, confirm_ctreeMI,
-discover_confirm, prune_unconfirmed, report_confirm) implement a
-discover-then-confirm workflow in which a tree fitted by ctree_stacked() is
-tested on independently imputed held-out data using mice::D1(). No existing
-function has changed.
-
-The package-level help page described the correction as dividing the
-significance threshold by M, which is not what the package does and is
-contradicted by ?ctree_stacked. It now describes the mechanism correctly.
+sandwich is added to Suggests. No existing function's default behaviour has
+changed.
 
 ## Downstream dependencies
 

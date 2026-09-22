@@ -10,7 +10,9 @@ confirm_ctreeMI(
   outcome_type = "auto",
   min_node = 5L,
   adjust = "holm",
-  conf.level = 0.95
+  conf.level = 0.95,
+  cluster = NULL,
+  vcov_type = "HC1"
 )
 }
 \arguments{
@@ -35,6 +37,16 @@ internal nodes of the tree, passed to \code{\link[stats:p.adjust]{stats::p.adjus
 
 \item{conf.level}{Confidence level for the pooled contrast reported with
 each split. Default 0.95.}
+
+\item{cluster}{Optional name of a column in the confirmation data
+identifying a higher-level unit such as a school or district. When
+given, every model's covariance matrix is replaced by a cluster-robust
+estimate from \code{\link[sandwich:vcovCL]{sandwich::vcovCL()}}, so that within-cluster correlation
+is accounted for in every test and interval. Requires the \code{sandwich}
+package.}
+
+\item{vcov_type}{The small-sample adjustment passed to
+\code{\link[sandwich:vcovCL]{sandwich::vcovCL()}} when \code{cluster} is given. Default \code{"HC1"}.}
 }
 \value{
 An object of class \code{"ctreeMI_confirm"}: a list with elements
@@ -51,9 +63,12 @@ observations in the parent node per imputation). \code{NA} where a child
 node fell below \code{min_node} in some imputation.}
 \item{\code{nodes}}{A data frame of pooled per-node estimates: \code{node_id},
 \code{outcome}, \code{estimate} (mean or proportion), \code{se}, \code{n_confirm}
-(mean observations per imputation), and \code{tested}.}
+(mean observations per imputation), \code{n_clusters}, and \code{tested}.}
 \item{\code{m}}{Number of imputations used.}
 \item{\code{n_confirm}}{Number of confirmation observations.}
+\item{\code{cluster}, \code{n_clusters}, \code{vcov_type}}{The cluster column,
+the number of clusters in the confirmation data, and the variance
+estimator used (\code{"model"} when unclustered).}
 \item{\code{excluded}}{Terminal-node ids excluded for having fewer than
 \code{min_node} observations, if any.}
 }
@@ -87,8 +102,10 @@ miscalibrates the stacked test is properly accounted for.
 \subsection{What is tested}{
 
 Two families of test are run, both pooled across imputations by the
-multivariate Wald procedure of Li, Raghunathan and Rubin (1991),
-implemented in \code{\link[mice:D1]{mice::D1()}}.
+multivariate Wald procedure of Li, Raghunathan and Rubin (1991). The
+pooling is implemented within this package rather than through
+\code{\link[mice:D1]{mice::D1()}} so that a cluster-robust covariance can be supplied; with
+\code{cluster = NULL} the two agree.
 
 The \strong{omnibus test} fits, for each outcome, a model with terminal-node
 membership as the only predictor, and tests whether the outcome differs
@@ -119,6 +136,31 @@ allows this to be read off. Pooled node-level estimates are returned so
 that the pattern of differences can be examined directly.
 }
 
+\subsection{Clustered data}{
+
+When observations are nested in units, the members of a unit are not
+independent and a model-based variance understates uncertainty. Passing
+the unit identifier as \code{cluster} substitutes a cluster-robust covariance
+for every fitted model before pooling, so that the omnibus test, the
+per-split tests, the contrasts and the node estimates all reflect the
+effective sample size. The discovery split should have kept units
+intact; see \code{\link[=split_holdout]{split_holdout()}}.
+
+The reference distributions carry the usual small-sample adjustments: the
+Reiter (2007) adjustment for the multivariate test and the Barnard-Rubin
+(1999) adjustment for the scalar contrasts, both of which cap the
+degrees of freedom by the complete-data degrees of freedom. Unclustered,
+that is the residual degrees of freedom, and the tests then agree with
+\code{\link[mice:D1]{mice::D1()}} and \code{\link[mice:pool]{mice::pool()}}. Clustered, the complete-data degrees of
+freedom are taken as the number of clusters minus one, which is the
+conventional choice for cluster-robust inference and is what makes the
+tests more conservative as clusters become few.
+
+Cluster-robust variance is nonetheless unreliable with very few clusters,
+and a warning is issued below twenty. The number of clusters behind each
+node and each split is reported so that this can be judged.
+}
+
 \subsection{Node assignment under imputation}{
 
 Each imputed confirmation dataset is passed through the discovery tree's
@@ -147,10 +189,17 @@ confirm_ctreeMI(tree, imp_c)
 }
 }
 \references{
+Barnard, J., and Rubin, D. B. (1999). Small-sample degrees of freedom
+with multiple imputation. \emph{Biometrika}, 86, 948--955.
+
 Li, K. H., Raghunathan, T. E., and Rubin, D. B. (1991). Large-sample
 significance levels from multiply imputed data using moment-based
 statistics and an F reference distribution. \emph{Journal of the
 American Statistical Association}, 86, 1065--1073.
+
+Reiter, J. P. (2007). Small-sample degrees of freedom for multi-component
+significance tests with multiple imputation for missing data.
+\emph{Biometrika}, 94, 502--508.
 }
 \seealso{
 \code{\link[=split_holdout]{split_holdout()}}, \code{\link[=discover_confirm]{discover_confirm()}}, \code{\link[=ctree_stacked]{ctree_stacked()}}
