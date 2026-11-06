@@ -1,11 +1,19 @@
 ## R CMD check results
 
-0 errors | 0 warnings | 0 notes
+0 errors | 0 warnings | 1 note
+
+* checking CRAN incoming feasibility ... NOTE
+  Number of updates in past 6 months: 7
+
+Version 1.2.0 was released on 12 October 2026. This submission is not a
+bug-fix resubmission: it adds a design for data nested in few clusters,
+ordinal and nominal outcomes in the confirmation step, and two vignettes.
 
 ## Test environments
 
-* macOS Sonoma 14.8.4 (local), R 4.4.2, aarch64-apple-darwin20
-* win-builder (R-devel and R-release)
+* macOS, local, R 4.4.2 (aarch64-apple-darwin20)
+* win-builder, R-release 4.6.2 (x86_64-w64-mingw32)
+* win-builder, R-devel (2026-11-05 r90840)
 
 ## Reason for this submission
 
