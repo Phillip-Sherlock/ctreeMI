@@ -118,7 +118,7 @@ splitting whole cohorts. In short: growing the tree on the centered outcome
 kept a cohort-level proxy out of the tree, nothing was confirmed within
 clusters under the null, the fixed-effects test cost almost no power, and
 unequal cohort sizes changed none of this. The script and results are
-archived with the package's other simulations; the README gives the links.
+in the package's GitHub repository, under `simulations/`.
 Effects that differ in size between cohorts were not examined.
 
 ## Doing it by hand

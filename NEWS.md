@@ -52,8 +52,8 @@ confirmation. `MASS` and `nnet` are added to Suggests.
 
 A simulation with 5 to 20 clusters, equal and unequal cluster sizes, and
 null, moderate and weak within-cluster effects compared the design with the
-alternatives on the same data. The script and results are archived with the
-package's other simulations (see README).
+alternatives on the same data. The script and results are in the
+package's GitHub repository, under `simulations/`.
 
 ## Vignettes
 

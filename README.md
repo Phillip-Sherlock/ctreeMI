@@ -151,9 +151,8 @@ See `vignette("discover-then-confirm")` and `vignette("few-clusters")`.
 The simulations behind the Stack/M correction and the node-level
 calibration results are archived at
 [doi:10.5281/zenodo.21939940](https://doi.org/10.5281/zenodo.21939940).
-The simulation behind the within-cluster design (version 1.3.0) is in
-`simulations/` in this repository, script and results, and is archived at
-Zenodo alongside it.
+The simulation behind the within-cluster design (version 1.3.0), script and
+results, is in `simulations/` in this repository.
 
 ## Citation
 
