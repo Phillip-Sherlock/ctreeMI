@@ -15,6 +15,7 @@ discover_confirm(
   alpha = 0.05,
   mice_args = list(),
   vcov_type = "HC1",
+  within = FALSE,
   ...
 )
 }
@@ -47,13 +48,23 @@ that matrix is used as given and \code{cluster} is not removed from it.}
 \item{vcov_type}{Passed to \code{\link[=confirm_ctreeMI]{confirm_ctreeMI()}}; ignored unless \code{cluster}
 is given.}
 
+\item{within}{Logical. With \code{cluster} given, \code{TRUE} selects the
+within-cluster design for data nested in few clusters: participants are
+split within every cluster (\code{strata = cluster}) rather than whole
+clusters between halves, the cluster identifier stays in the imputation
+model, the tree is grown on the outcome centered by cluster
+(\code{center_by = cluster}), and the partition is confirmed three ways with
+\code{\link[=confirm_within]{confirm_within()}}. Default \code{FALSE}.}
+
 \item{...}{Further arguments passed to \code{\link[=ctree_stacked]{ctree_stacked()}}.}
 }
 \value{
 An object of class \code{"ctreeMI_dc"} containing \code{tree} (the
-\code{ctreeMI} fit), \code{confirmation} (a \code{ctreeMI_confirm} object), \code{split}
-(the \code{ctreeMI_split} object), and the two \code{mids} objects as
-\code{imp_discover} and \code{imp_confirm}.
+\code{ctreeMI} fit), \code{confirmation} (a \code{ctreeMI_confirm} object: with
+\code{within = TRUE}, the cluster-robust confirmation on the raw outcome),
+\code{within} (a \code{ctreeMI_confirm_within} object when \code{within = TRUE},
+otherwise \code{NULL}), \code{split} (the \code{ctreeMI_split} object), and the two
+\code{mids} objects as \code{imp_discover} and \code{imp_confirm}.
 }
 \description{
 A single call that splits the data, imputes each half separately, fits
@@ -69,6 +80,19 @@ predictors, and the confirmation test then no longer sees independent
 data. The cost is that each imputation model is fitted to half the
 observations. For most designs this is a reasonable trade; for small
 samples it may not be, and the user should judge.
+\subsection{Two designs for clustered data}{
+
+With \code{cluster} alone, whole clusters go to one half or the other, the
+halves are independent at the cluster level, and a confirmed split is
+evidence about clusters the tree never saw. The confirmation then has
+only the clusters in its half, and \code{\link[=confirm_ctreeMI]{confirm_ctreeMI()}} warns below
+twenty. With \code{cluster} and \code{within = TRUE}, every cluster contributes
+participants to both halves, so the confirmation keeps all clusters; the
+claim is replication in held-out participants from these clusters, and
+the three confirmations in \code{\link[=confirm_within]{confirm_within()}} show whether a split holds
+within clusters and across them. Use the first when there are enough
+clusters to split, the second when there are not.
+}
 }
 \examples{
 \dontrun{

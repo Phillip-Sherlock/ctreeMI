@@ -132,9 +132,13 @@ split_holdout <- function(data, prop = 0.5, strata = NULL, cluster = NULL,
 #'   [mice::mice()] or a list of imputed data frames. Must have been
 #'   imputed separately from the discovery data; see [split_holdout()].
 #' @param outcome_type Either `"auto"` (default), in which case numeric
-#'   outcomes are modelled by linear regression and two-level factors by
-#'   logistic regression, or a character vector of the same length as the
-#'   number of outcomes with entries `"continuous"` or `"binary"`.
+#'   outcomes are modeled by linear regression, two-level factors and
+#'   logicals by logistic regression, ordered factors with three or more
+#'   levels by proportional-odds regression ([MASS::polr()]) and unordered
+#'   factors with three or more levels by multinomial regression
+#'   ([nnet::multinom()]); or a character vector of the same length as the
+#'   number of outcomes with entries `"continuous"`, `"binary"`,
+#'   `"ordinal"` or `"nominal"`.
 #' @param min_node Minimum number of confirmation observations, per
 #'   imputation, that a terminal node must receive. Nodes below this are
 #'   reported but excluded from the test. Default 5.
@@ -151,6 +155,11 @@ split_holdout <- function(data, prop = 0.5, strata = NULL, cluster = NULL,
 #'   package.
 #' @param vcov_type The small-sample adjustment passed to
 #'   [sandwich::vcovCL()] when `cluster` is given. Default `"HC1"`.
+#' @param fixed Optional name of a column to enter as fixed effects (a factor)
+#'   in the omnibus and per-split models, so that each test and contrast is
+#'   estimated from variation within its levels only. Ordinarily the cluster
+#'   identifier, when the discovery and confirmation halves share clusters;
+#'   see [confirm_within()]. Node estimates are not adjusted.
 #'
 #' @details
 #' ## Why a separate confirmation step
@@ -158,7 +167,7 @@ split_holdout <- function(data, prop = 0.5, strata = NULL, cluster = NULL,
 #' A tree uses the data to choose which variables to split on and where.
 #' Testing the resulting subgroups on the same data is invalid regardless of
 #' how the missing values were handled, because the partition was selected
-#' to maximise exactly the separation being tested. Independently of that,
+#' to maximize exactly the separation being tested. Independently of that,
 #' the node-level test of [ctree_stacked()] is not calibrated under
 #' outcome-conditioned imputation; see the "Node-level calibration" section
 #' of that help page.
@@ -196,8 +205,12 @@ split_holdout <- function(data, prop = 0.5, strata = NULL, cluster = NULL,
 #' method in `adjust`.
 #'
 #' Each split is also reported with the pooled difference between its
-#' children and a confidence interval, on the scale of the outcome for a
-#' continuous response and as a log odds ratio for a binary one. These are
+#' children and a confidence interval: on the scale of the outcome for a
+#' continuous response, as a log odds ratio for a binary one, as a log
+#' cumulative odds ratio for an ordinal one, and for a nominal one as the
+#' log odds ratio against the first level for whichever level differs most
+#' (named in `contrast_level`), the per-split test itself covering all the
+#' levels at once. These are
 #' the quantities to report: the p-value says whether the split survived,
 #' the contrast says how much the subgroups differ and how precisely that is
 #' known. [prune_unconfirmed()] collapses the splits that did not survive.
@@ -231,6 +244,36 @@ split_holdout <- function(data, prop = 0.5, strata = NULL, cluster = NULL,
 #' and a warning is issued below twenty. The number of clusters behind each
 #' node and each split is reported so that this can be judged.
 #'
+#' ## Outcome types
+#'
+#' A continuous outcome is modeled by linear regression and a binary one by
+#' logistic regression. An ordered factor with three or more levels is
+#' modeled by proportional-odds logistic regression ([MASS::polr()]), so
+#' each split is one log cumulative odds ratio. An unordered factor with
+#' three or more levels is modeled by multinomial logistic regression
+#' ([nnet::multinom()]), so each split has one log odds ratio per
+#' non-reference level and the per-split test is a joint test of them.
+#' Node estimates for ordinal and nominal outcomes are the proportions in
+#' each level, one row per node and level. `sandwich` provides no methods
+#' for `multinom`, so the cluster-robust covariance for a nominal outcome is
+#' assembled within the package from the per-observation scores of the
+#' multinomial log-likelihood; it supports `vcov_type` `"HC0"` and `"HC1"`.
+#' Several outcomes of any of these types can be confirmed together.
+#'
+#' ## Fixed effects
+#'
+#' When the two halves share clusters, because the split was stratified on the
+#' cluster rather than made between clusters, a split that only sorts clusters
+#' with different outcome levels can replicate in the confirmation half.
+#' Passing the cluster identifier as `fixed` adds it to the omnibus and
+#' per-split models as a factor, so the tested coefficients are the
+#' within-cluster differences between the children of each split; the
+#' fixed-effect coefficients themselves are not tested. The cluster-robust
+#' variance still applies when `cluster` is also given. Node estimates remain
+#' unadjusted means or proportions, since a fixed-effects model has no
+#' single per-node level. [confirm_within()] runs the confirmation with and
+#' without `fixed` and lines the results up.
+#'
 #' ## Node assignment under imputation
 #'
 #' Each imputed confirmation dataset is passed through the discovery tree's
@@ -249,11 +292,13 @@ split_holdout <- function(data, prop = 0.5, strata = NULL, cluster = NULL,
 #'       outcome: `node_id`, `depth`, `split_var`, `rule` (the split as
 #'       written), `outcome`, `contrast` with `lower` and `upper` (the
 #'       pooled difference between the children and its confidence
-#'       interval), `F`, `df1`, `df2`, `p`, `p_adj`, and `n_confirm` (mean
+#'       interval), `contrast_level` (for a nominal outcome, the level the
+#'       contrast refers to), `F`, `df1`, `df2`, `p`, `p_adj`, and `n_confirm` (mean
 #'       observations in the parent node per imputation). `NA` where a child
 #'       node fell below `min_node` in some imputation.}
 #'     \item{`nodes`}{A data frame of pooled per-node estimates: `node_id`,
-#'       `outcome`, `estimate` (mean or proportion), `se`, `n_confirm`
+#'       `outcome`, `level` (for ordinal and nominal outcomes, else `NA`),
+#'       `estimate` (mean or proportion), `se`, `n_confirm`
 #'       (mean observations per imputation), `n_clusters`, and `tested`.}
 #'     \item{`m`}{Number of imputations used.}
 #'     \item{`n_confirm`}{Number of confirmation observations.}
@@ -297,7 +342,7 @@ split_holdout <- function(data, prop = 0.5, strata = NULL, cluster = NULL,
 #' @export
 confirm_ctreeMI <- function(tree, data, outcome_type = "auto", min_node = 5L,
                             adjust = "holm", conf.level = 0.95,
-                            cluster = NULL, vcov_type = "HC1") {
+                            cluster = NULL, vcov_type = "HC1", fixed = NULL) {
   if (!inherits(tree, "ctreeMI"))
     stop("`tree` must be a 'ctreeMI' object from ctree_stacked().")
   info <- attr(tree, "ctreeMI_info")
@@ -330,11 +375,42 @@ confirm_ctreeMI <- function(tree, data, outcome_type = "auto", min_node = 5L,
     n_cl <- NA_integer_
   }
 
+  # ---- fixed effects -------------------------------------------------------
+  if (!is.null(fixed)) {
+    if (!is.character(fixed) || length(fixed) != 1L)
+      stop("`fixed` must be the name of one column.")
+    if (!fixed %in% names(imps[[1L]]))
+      stop("`fixed` column '", fixed, "' not found in confirmation data.")
+    if (fixed %in% c(".node", ".side"))
+      stop("`fixed` cannot be named '.node' or '.side'.")
+    imps <- lapply(imps, function(d) { d[[fixed]] <- factor(d[[fixed]]); d })
+    if (nlevels(imps[[1L]][[fixed]]) < 2L)
+      stop("`fixed` column '", fixed, "' has a single level.")
+  }
+
   term <- partykit::nodeids(tree, terminal = TRUE)
   if (length(term) < 2L)
     stop("The discovery tree has a single terminal node; there is no partition to confirm.")
 
   types <- .resolve_types(imps[[1L]], outcomes, outcome_type)
+  if (any(types == "ordinal") && !requireNamespace("MASS", quietly = TRUE))
+    stop("Package 'MASS' is required for an ordinal outcome.")
+  if (any(types == "nominal") && !requireNamespace("nnet", quietly = TRUE))
+    stop("Package 'nnet' is required for a nominal outcome.")
+  # Ordinal and nominal outcomes are modeled as factors of the stated kind,
+  # with the same levels in every imputation.
+  for (j in seq_along(outcomes)) {
+    if (types[j] %in% c("ordinal", "nominal")) {
+      y <- outcomes[j]
+      levs <- levels(factor(imps[[1L]][[y]]))
+      imps <- lapply(imps, function(d) {
+        d[[y]] <- factor(d[[y]], levels = levs, ordered = types[j] == "ordinal")
+        d
+      })
+      if (length(levs) < 3L)
+        stop("Outcome '", y, "' has fewer than three levels; use outcome_type \"binary\".")
+    }
+  }
 
   # ---- node assignment per imputation -------------------------------------
   assigned <- lapply(imps, function(d)
@@ -367,9 +443,11 @@ confirm_ctreeMI <- function(tree, data, outcome_type = "auto", min_node = 5L,
       d <- imps[[i]]; d$.node <- assigned[[i]]
       dk <- d[d$.node %in% keep, , drop = FALSE]
       dk$.node <- factor(as.character(dk$.node), levels = keep)
-      .fit_extract(stats::reformulate(".node", y), dk, type,
+      if (!is.null(fixed)) dk[[fixed]] <- droplevels(dk[[fixed]])
+      .fit_extract(stats::reformulate(c(".node", fixed), y), dk, type,
                    cl = if (is.null(cluster)) NULL else dk[[cluster]],
-                   vcov_type = vcov_type, drop_intercept = TRUE)
+                   vcov_type = vcov_type, drop_intercept = TRUE,
+                   keep = if (is.null(fixed)) NULL else "(^|:)\\.node")
     })
     d1 <- .pool_d1(om)
     test_rows[[j]] <- data.frame(outcome = y,
@@ -382,38 +460,48 @@ confirm_ctreeMI <- function(tree, data, outcome_type = "auto", min_node = 5L,
       warning("Omnibus test failed for outcome '", y, "'.", call. = FALSE)
 
     # node estimates: y ~ 0 + .node so coefficients are node means
-    # (linear probability for a binary outcome, giving proportions)
-    nm <- lapply(seq_len(M), function(i) {
-      d <- imps[[i]]; d$.node <- droplevels(assigned[[i]])   # empty nodes: absent, not NA
-      if (type == "binary") d[[y]] <- .as01(d[[y]])
-      .fit_extract(stats::reformulate("0 + .node", y), d, "continuous",
-                   cl = if (is.null(cluster)) NULL else d[[cluster]],
-                   vcov_type = vcov_type, drop_intercept = FALSE)
-    })
-    est <- se <- rep(NA_real_, length(term)); names(est) <- names(se) <- as.character(term)
-    ok_nm <- !vapply(nm, is.null, logical(1L))
-    if (any(ok_nm)) {
-      nm <- nm[ok_nm]
-      for (nd in as.character(term)) {
-        key <- paste0(".node", nd)
-        q <- vapply(nm, function(f) if (key %in% names(f$coef)) f$coef[[key]] else NA_real_, numeric(1L))
-        u <- vapply(nm, function(f) if (key %in% rownames(f$vcov)) f$vcov[key, key] else NA_real_, numeric(1L))
-        good <- !is.na(q) & !is.na(u)
-        if (sum(good) >= 2L) {
-          dfc <- min(vapply(nm[good], function(f) f$dfcom, numeric(1L)))
-          ps  <- .pool_scalar(q[good], u[good], dfcom = dfc)
-          est[nd] <- ps$estimate; se[nd] <- ps$se
+    # (linear probability for a binary outcome, giving proportions; one
+    # proportion per level for an ordinal or nominal outcome)
+    levs_est <- if (type %in% c("ordinal", "nominal")) levels(imps[[1L]][[y]]) else NA_character_
+    rows_j <- lapply(levs_est, function(lv) {
+      nm <- lapply(seq_len(M), function(i) {
+        d <- imps[[i]]; d$.node <- droplevels(assigned[[i]])   # empty nodes: absent, not NA
+        if (type == "binary") d[[y]] <- .as01(d[[y]])
+        if (!is.na(lv)) d[[y]] <- as.numeric(as.character(d[[y]]) == lv)
+        .fit_extract(stats::reformulate("0 + .node", y), d, "continuous",
+                     cl = if (is.null(cluster)) NULL else d[[cluster]],
+                     vcov_type = vcov_type, drop_intercept = FALSE)
+      })
+      est <- se <- rep(NA_real_, length(term)); names(est) <- names(se) <- as.character(term)
+      ok_nm <- !vapply(nm, is.null, logical(1L))
+      if (any(ok_nm)) {
+        nm <- nm[ok_nm]
+        for (nd in as.character(term)) {
+          key <- paste0(".node", nd)
+          q <- vapply(nm, function(f) if (key %in% names(f$coef)) f$coef[[key]] else NA_real_, numeric(1L))
+          u <- vapply(nm, function(f) if (key %in% rownames(f$vcov)) f$vcov[key, key] else NA_real_, numeric(1L))
+          good <- !is.na(q) & !is.na(u)
+          if (sum(good) >= 2L) {
+            dfc <- min(vapply(nm[good], function(f) f$dfcom, numeric(1L)))
+            ps  <- .pool_scalar(q[good], u[good], dfcom = dfc)
+            est[nd] <- ps$estimate; se[nd] <- ps$se
+          }
         }
       }
-    }
-    node_rows[[j]] <- data.frame(node_id    = as.integer(term),
-                                 outcome    = y,
-                                 estimate   = unname(est),
-                                 se         = unname(se),
-                                 n_confirm  = as.numeric(size[as.character(term)]),
-                                 n_clusters = unname(node_cl),
-                                 tested     = as.character(term) %in% keep,
-                                 row.names  = NULL)
+      data.frame(node_id    = as.integer(term),
+                 outcome    = y,
+                 level      = lv,
+                 estimate   = unname(est),
+                 se         = unname(se),
+                 n_confirm  = as.numeric(size[as.character(term)]),
+                 n_clusters = unname(node_cl),
+                 tested     = as.character(term) %in% keep,
+                 stringsAsFactors = FALSE, row.names = NULL)
+    })
+    rows_j <- do.call(rbind, rows_j)
+    rows_j <- rows_j[order(rows_j$node_id), ]
+    rownames(rows_j) <- NULL
+    node_rows[[j]] <- rows_j
   }
 
   # ---- per-split tests ------------------------------------------------------
@@ -444,6 +532,7 @@ confirm_ctreeMI <- function(tree, data, outcome_type = "auto", min_node = 5L,
       row <- data.frame(node_id = nd$node_id, depth = nd$depth,
                         split_var = nd$split_var, rule = nd$rule, outcome = y,
                         contrast = NA_real_, lower = NA_real_, upper = NA_real_,
+                        contrast_level = NA_character_,
                         F = NA_real_, df1 = NA_real_, df2 = NA_real_,
                         p = NA_real_, p_adj = NA_real_,
                         n_confirm = n_parent, n_clusters = cl_parent,
@@ -452,9 +541,11 @@ confirm_ctreeMI <- function(tree, data, outcome_type = "auto", min_node = 5L,
         fx <- lapply(seq_len(M), function(i) {
           d <- imps[[i]]; d$.side <- side[[i]]
           dk <- d[!is.na(d$.side), , drop = FALSE]
-          .fit_extract(stats::reformulate(".side", y), dk, type,
+          if (!is.null(fixed)) dk[[fixed]] <- droplevels(dk[[fixed]])
+          .fit_extract(stats::reformulate(c(".side", fixed), y), dk, type,
                        cl = if (is.null(cluster)) NULL else dk[[cluster]],
-                       vcov_type = vcov_type, drop_intercept = TRUE)
+                       vcov_type = vcov_type, drop_intercept = TRUE,
+                       keep = if (is.null(fixed)) NULL else "(^|:)\\.side")
         })
         d1 <- .pool_d1(fx)
         if (!is.null(d1)) {
@@ -476,6 +567,8 @@ confirm_ctreeMI <- function(tree, data, outcome_type = "auto", min_node = 5L,
           row$contrast <- ps$estimate
           row$lower <- ps$estimate - crit * ps$se
           row$upper <- ps$estimate + crit * ps$se
+          # for a nominal outcome the coefficient belongs to one level
+          if (type == "nominal") row$contrast_level <- sub(":.*$", "", cn[k])
         }
       }
       split_rows[[length(split_rows) + 1L]] <- row
@@ -499,6 +592,7 @@ confirm_ctreeMI <- function(tree, data, outcome_type = "auto", min_node = 5L,
                  cluster    = cluster,
                  n_clusters = n_cl,
                  vcov_type  = if (is.null(cluster)) "model" else vcov_type,
+                 fixed      = fixed,
                  excluded   = as.integer(drop),
                  outcomes   = outcomes,
                  types      = types),
@@ -532,6 +626,13 @@ confirm_ctreeMI <- function(tree, data, outcome_type = "auto", min_node = 5L,
 #'   that matrix is used as given and `cluster` is not removed from it.
 #' @param vcov_type Passed to [confirm_ctreeMI()]; ignored unless `cluster`
 #'   is given.
+#' @param within Logical. With `cluster` given, `TRUE` selects the
+#'   within-cluster design for data nested in few clusters: participants are
+#'   split within every cluster (`strata = cluster`) rather than whole
+#'   clusters between halves, the cluster identifier stays in the imputation
+#'   model, the tree is grown on the outcome centered by cluster
+#'   (`center_by = cluster`), and the partition is confirmed three ways with
+#'   [confirm_within()]. Default `FALSE`.
 #' @param ... Further arguments passed to [ctree_stacked()].
 #'
 #' @details
@@ -542,10 +643,25 @@ confirm_ctreeMI <- function(tree, data, outcome_type = "auto", min_node = 5L,
 #' observations. For most designs this is a reasonable trade; for small
 #' samples it may not be, and the user should judge.
 #'
+#' ## Two designs for clustered data
+#'
+#' With `cluster` alone, whole clusters go to one half or the other, the
+#' halves are independent at the cluster level, and a confirmed split is
+#' evidence about clusters the tree never saw. The confirmation then has
+#' only the clusters in its half, and [confirm_ctreeMI()] warns below
+#' twenty. With `cluster` and `within = TRUE`, every cluster contributes
+#' participants to both halves, so the confirmation keeps all clusters; the
+#' claim is replication in held-out participants from these clusters, and
+#' the three confirmations in [confirm_within()] show whether a split holds
+#' within clusters and across them. Use the first when there are enough
+#' clusters to split, the second when there are not.
+#'
 #' @return An object of class `"ctreeMI_dc"` containing `tree` (the
-#'   `ctreeMI` fit), `confirmation` (a `ctreeMI_confirm` object), `split`
-#'   (the `ctreeMI_split` object), and the two `mids` objects as
-#'   `imp_discover` and `imp_confirm`.
+#'   `ctreeMI` fit), `confirmation` (a `ctreeMI_confirm` object: with
+#'   `within = TRUE`, the cluster-robust confirmation on the raw outcome),
+#'   `within` (a `ctreeMI_confirm_within` object when `within = TRUE`,
+#'   otherwise `NULL`), `split` (the `ctreeMI_split` object), and the two
+#'   `mids` objects as `imp_discover` and `imp_confirm`.
 #'
 #' @seealso [split_holdout()], [confirm_ctreeMI()], [ctree_stacked()]
 #' @examples
@@ -564,15 +680,27 @@ confirm_ctreeMI <- function(tree, data, outcome_type = "auto", min_node = 5L,
 #' @export
 discover_confirm <- function(formula, data, prop = 0.5, m = 30L, strata = NULL,
                              cluster = NULL, seed = NULL, alpha = 0.05,
-                             mice_args = list(), vcov_type = "HC1", ...) {
+                             mice_args = list(), vcov_type = "HC1",
+                             within = FALSE, ...) {
   if (!is.null(cluster) && cluster %in% all.vars(formula[[3L]]))
     warning("`cluster` variable '", cluster, "' also appears as a predictor in ",
             "`formula`. It will be used to define the split and the variance, ",
             "and the tree will be free to split on it; that is rarely intended.",
             call. = FALSE)
+  within <- isTRUE(within)
+  if (within) {
+    if (is.null(cluster))
+      stop("`within = TRUE` requires `cluster`.")
+    if (!is.null(strata) && !identical(strata, cluster))
+      stop("With `within = TRUE` the split is stratified on `cluster`; ",
+           "`strata` must be NULL or equal to `cluster`.")
+  }
 
-  parts <- split_holdout(data, prop = prop, strata = strata, cluster = cluster,
-                         seed = seed)
+  parts <- if (within) {
+    split_holdout(data, prop = prop, strata = cluster, cluster = NULL, seed = seed)
+  } else {
+    split_holdout(data, prop = prop, strata = strata, cluster = cluster, seed = seed)
+  }
 
   args_d <- c(list(data = parts$discover, m = m, printFlag = FALSE), mice_args)
   args_c <- c(list(data = parts$confirm,  m = m, printFlag = FALSE), mice_args)
@@ -582,7 +710,9 @@ discover_confirm <- function(formula, data, prop = 0.5, m = 30L, strata = NULL,
   }
   # A cluster identifier is an identifier, not a predictor: keep it out of
   # the imputation model unless the user supplied their own predictorMatrix.
-  if (!is.null(cluster) && is.null(mice_args$predictorMatrix)) {
+  # In the within-cluster design it stays in, so that a cluster's missing
+  # values are imputed from that cluster's own observed cases.
+  if (!is.null(cluster) && !within && is.null(mice_args$predictorMatrix)) {
     drop_cluster <- function(a) {
       pm <- mice::make.predictorMatrix(a$data)
       pm[, cluster] <- 0L
@@ -596,16 +726,22 @@ discover_confirm <- function(formula, data, prop = 0.5, m = 30L, strata = NULL,
   imp_d <- do.call(mice::mice, args_d)
   imp_c <- do.call(mice::mice, args_c)
 
-  tree <- ctree_stacked(formula, data = imp_d, alpha = alpha, verbose = FALSE, ...)
+  tree <- ctree_stacked(formula, data = imp_d, alpha = alpha, verbose = FALSE,
+                        center_by = if (within) cluster else NULL, ...)
 
-  conf <- if (length(partykit::nodeids(tree, terminal = TRUE)) >= 2L) {
-    confirm_ctreeMI(tree, imp_c, cluster = cluster, vcov_type = vcov_type)
+  conf <- NULL; wconf <- NULL
+  if (length(partykit::nodeids(tree, terminal = TRUE)) >= 2L) {
+    if (within) {
+      wconf <- confirm_within(tree, imp_c, cluster = cluster, vcov_type = vcov_type)
+      conf  <- wconf$robust
+    } else {
+      conf <- confirm_ctreeMI(tree, imp_c, cluster = cluster, vcov_type = vcov_type)
+    }
   } else {
     message("Discovery tree has a single node; no partition to confirm.")
-    NULL
   }
 
-  structure(list(tree = tree, confirmation = conf, split = parts,
+  structure(list(tree = tree, confirmation = conf, within = wconf, split = parts,
                  imp_discover = imp_d, imp_confirm = imp_c),
             class = "ctreeMI_dc")
 }
@@ -619,6 +755,8 @@ print.ctreeMI_confirm <- function(x, digits = 3L, ...) {
   if (!is.null(x$cluster))
     cat(sprintf("  %d clusters (%s); cluster-robust variance, %s\n",
                 x$n_clusters, x$cluster, x$vcov_type))
+  if (!is.null(x$fixed))
+    cat(sprintf("  fixed effects for %s in the omnibus and per-split models\n", x$fixed))
   if (length(x$excluded))
     cat("  Node(s) excluded for insufficient confirmation observations: ",
         paste(x$excluded, collapse = ", "), "\n", sep = "")
@@ -642,14 +780,23 @@ print.ctreeMI_confirm <- function(x, digits = 3L, ...) {
                       n = round(sp$n_confirm, 0),
                       stringsAsFactors = FALSE)
     if (!is.null(x$cluster)) tab$clusters <- round(sp$n_clusters, 0)
+    if (any(!is.na(sp$contrast_level)))
+      tab$level <- ifelse(is.na(sp$contrast_level), "", sp$contrast_level)
     print(tab, row.names = FALSE)
     cat("  difference: pooled contrast between children with ",
         format(100 * lev), "% interval; p_adj: ", attr(x, "adjust"),
         "-adjusted across splits.\n",
         "  A split beneath a non-confirmed split is not interpretable.\n", sep = "")
+    scale_note <- c(continuous = "difference in means",
+                    binary     = "log odds ratio",
+                    ordinal    = "log cumulative odds ratio (proportional odds)",
+                    nominal    = "log odds ratio of one level against the first, for the level with the largest effect")
+    used <- unique(x$types)
+    cat("  scale: ", paste(sprintf("%s (%s)", scale_note[used], used), collapse = "; "), ".\n", sep = "")
   }
   cat("\nPooled node estimates:\n")
   nd <- x$nodes
+  if (all(is.na(nd$level))) nd$level <- NULL
   nd$estimate  <- round(nd$estimate, digits)
   nd$se        <- round(nd$se, digits)
   nd$n_confirm <- round(nd$n_confirm, 1)
@@ -670,6 +817,7 @@ print.ctreeMI_dc <- function(x, ...) {
     cat("No partition to confirm (single-node tree).\n")
   } else {
     print(x$confirmation, ...)
+    if (!is.null(x$within)) { cat("\n"); print(x$within, ...) }
   }
   invisible(x)
 }
@@ -681,13 +829,21 @@ print.ctreeMI_dc <- function(x, ...) {
 # covariance matrix, model-based or cluster-robust. Returns NULL if the fit
 # fails or is rank-deficient, so callers can drop it.
 .fit_extract <- function(formula, d, type, cl = NULL, vcov_type = "HC1",
-                         drop_intercept = TRUE) {
+                         drop_intercept = TRUE, keep = NULL) {
   fit <- tryCatch(
-    if (type == "binary") stats::glm(formula, data = d, family = stats::binomial())
-    else stats::lm(formula, data = d),
+    switch(type,
+      binary     = stats::glm(formula, data = d, family = stats::binomial()),
+      ordinal    = MASS::polr(formula, data = d, Hess = TRUE, method = "logistic"),
+      nominal    = nnet::multinom(formula, data = d, trace = FALSE, Hess = TRUE,
+                                  maxit = 500L),
+      stats::lm(formula, data = d)),
     error = function(e) NULL)
   if (is.null(fit)) return(NULL)
-  b <- stats::coef(fit)
+  if (type == "nominal" && !isTRUE(fit$convergence == 0L)) return(NULL)
+
+  # Coefficient vector. polr keeps its thresholds out of coef(); multinom
+  # returns a (levels - 1) x p matrix, vectorized level-major to match vcov().
+  b <- if (type == "nominal") .multinom_coef(fit) else stats::coef(fit)
   if (anyNA(b)) return(NULL)
   if (!is.null(cl)) {
     # The cluster vector must align with the rows the model actually used.
@@ -695,23 +851,94 @@ print.ctreeMI_dc <- function(x, ...) {
     # to proceed if the lengths still disagree rather than misalign silently.
     cl <- as.character(cl)
     if (!is.null(fit$na.action)) cl <- cl[-fit$na.action]
-    if (length(cl) != stats::nobs(fit)) return(NULL)
+    n_used <- .nobs(fit, type)
+    if (length(cl) != n_used) return(NULL)
   }
   V <- tryCatch(
-    if (is.null(cl)) stats::vcov(fit)
+    if (type == "nominal") .vcov_multinom(fit, d, cl = cl, vcov_type = vcov_type)
+    else if (is.null(cl)) stats::vcov(fit)
     else sandwich::vcovCL(fit, cluster = cl, type = vcov_type),
     error = function(e) NULL)
   if (is.null(V) || anyNA(V)) return(NULL)
-  if (drop_intercept && "(Intercept)" %in% names(b)) {
-    keep <- names(b) != "(Intercept)"
-    b <- b[keep]; V <- V[keep, keep, drop = FALSE]
+  # polr's vcov() covers thresholds as well; keep the regression coefficients
+  V <- V[names(b), names(b), drop = FALSE]
+  if (drop_intercept) {
+    sel <- !grepl("(Intercept)", names(b), fixed = TRUE)
+    b <- b[sel]; V <- V[sel, sel, drop = FALSE]
   }
+  # Retain only the coefficients of interest, e.g. the node or side
+  # contrasts when fixed effects were added to the model.
+  if (!is.null(keep)) {
+    sel <- grepl(keep, names(b))
+    if (!any(sel)) return(NULL)
+    b <- b[sel]; V <- V[sel, sel, drop = FALSE]
+  }
+  if (!length(b)) return(NULL)
   # Complete-data degrees of freedom for the small-sample adjustment. With
   # independent observations this is the residual df. With clustering the
   # effective number of independent units is the number of clusters, and
   # G - 1 is the conventional choice for cluster-robust inference.
-  dfcom <- if (is.null(cl)) stats::df.residual(fit) else length(unique(cl)) - 1L
+  dfcom <- if (is.null(cl)) .df_residual(fit, type) else length(unique(cl)) - 1L
   list(coef = b, vcov = V, dfcom = dfcom)
+}
+
+# Number of observations a fitted model used.
+.nobs <- function(fit, type) {
+  if (type == "nominal") {
+    fv <- fit$fitted.values
+    return(if (is.matrix(fv)) nrow(fv) else length(fv))
+  }
+  stats::nobs(fit)
+}
+
+# Residual degrees of freedom; multinom has no df.residual() method.
+.df_residual <- function(fit, type) {
+  if (type == "nominal") return(.nobs(fit, type) - fit$edf)
+  stats::df.residual(fit)
+}
+
+# multinom coefficients as a named vector in the order vcov() uses:
+# all coefficients of the second level, then of the third, and so on.
+.multinom_coef <- function(fit) {
+  cm <- stats::coef(fit)
+  if (is.matrix(cm)) {
+    stats::setNames(as.vector(t(cm)),
+                    paste(rep(rownames(cm), each = ncol(cm)), colnames(cm), sep = ":"))
+  } else {
+    cm
+  }
+}
+
+# Model-based or cluster-robust covariance for a multinom fit. sandwich has
+# no estfun()/bread() methods for multinom, so the sandwich is assembled
+# here from the per-observation scores of the multinomial log-likelihood:
+# for each non-reference level k, (I[y = k] - p_k) * x. The bread is the
+# inverse observed information, which is what vcov() returns.
+.vcov_multinom <- function(fit, d, cl = NULL, vcov_type = "HC1") {
+  Vm <- stats::vcov(fit)
+  if (is.null(cl)) return(Vm)
+  if (!vcov_type %in% c("HC0", "HC1"))
+    stop("For a nominal outcome `vcov_type` must be \"HC0\" or \"HC1\".")
+  mf <- stats::model.frame(fit$terms, data = d, xlev = fit$xlevels)
+  X  <- stats::model.matrix(fit$terms, mf, contrasts.arg = fit$contrasts)
+  y  <- stats::model.response(mf)
+  lev <- fit$lev
+  P  <- fit$fitted.values
+  if (!is.matrix(P) || ncol(P) == 1L) P <- cbind(1 - as.vector(P), as.vector(P))  # two levels
+  Y  <- outer(as.character(y), lev, `==`) * 1
+  R  <- (Y - P)[, -1L, drop = FALSE]                 # drop the reference level
+  # scores, level-major to match the coefficient vector
+  S  <- do.call(cbind, lapply(seq_len(ncol(R)), function(k) R[, k] * X))
+  cl <- as.character(cl)
+  Sg <- rowsum(S, cl)                                # sum within clusters
+  meat <- crossprod(Sg)
+  n <- nrow(X); G <- nrow(Sg); k <- ncol(S)
+  # the same finite-cluster adjustments sandwich::vcovCL() applies:
+  # G/(G - 1) for every type, and (n - 1)/(n - k) in addition for HC1
+  adj <- G / (G - 1) * if (vcov_type == "HC1") (n - 1) / (n - k) else 1
+  V <- adj * Vm %*% meat %*% Vm
+  dimnames(V) <- dimnames(Vm)
+  V
 }
 
 # Multivariate Wald test pooled across imputations (Li, Raghunathan and
@@ -834,16 +1061,19 @@ print.ctreeMI_dc <- function(x, ...) {
     vapply(outcomes, function(y) {
       v <- d[[y]]
       if (is.numeric(v)) return("continuous")
-      if (is.factor(v) && nlevels(v) == 2L) return("binary")
       if (is.logical(v)) return("binary")
-      stop("Outcome '", y, "' is neither numeric nor a two-level factor; ",
-           "specify `outcome_type` explicitly.")
+      if (is.factor(v)) {
+        if (nlevels(v) == 2L) return("binary")
+        if (nlevels(v) > 2L) return(if (is.ordered(v)) "ordinal" else "nominal")
+      }
+      stop("Outcome '", y, "' is not numeric, logical or a factor with at ",
+           "least two levels; specify `outcome_type` explicitly.")
     }, character(1L))
   } else {
     if (length(outcome_type) != length(outcomes))
       stop("`outcome_type` must have one entry per outcome.")
-    if (!all(outcome_type %in% c("continuous", "binary")))
-      stop("`outcome_type` entries must be 'continuous' or 'binary'.")
+    if (!all(outcome_type %in% c("continuous", "binary", "ordinal", "nominal")))
+      stop("`outcome_type` entries must be 'continuous', 'binary', 'ordinal' or 'nominal'.")
     stats::setNames(outcome_type, outcomes)
   }
 }
@@ -984,10 +1214,12 @@ prune_unconfirmed <- function(tree, confirmation, alpha = 0.05,
 #' how each half was imputed, the tree that was discovered, and which of its
 #' splits survived testing on the confirmation data.
 #'
-#' @param object A `ctreeMI_dc` object from [discover_confirm()], or a
-#'   `ctreeMI_confirm` object from [confirm_ctreeMI()].
+#' @param object A `ctreeMI_dc` object from [discover_confirm()], a
+#'   `ctreeMI_confirm` object from [confirm_ctreeMI()], or a
+#'   `ctreeMI_confirm_within` object from [confirm_within()].
 #' @param tree The discovery tree, required when `object` is a
-#'   `ctreeMI_confirm` object and ignored otherwise.
+#'   `ctreeMI_confirm` or `ctreeMI_confirm_within` object and ignored
+#'   otherwise.
 #' @param digits Number of digits used in the reported quantities.
 #'
 #' @return An object of class `"ctreeMI_report"`, as returned by
@@ -1001,11 +1233,19 @@ prune_unconfirmed <- function(tree, confirmation, alpha = 0.05,
 #' }
 #' @export
 report_confirm <- function(object, tree = NULL, digits = 3) {
+  within <- NULL
   if (inherits(object, "ctreeMI_dc")) {
-    tree <- object$tree
-    cf   <- object$confirmation
-    n_d  <- nrow(object$split$discover)
-    n_c  <- nrow(object$split$confirm)
+    tree   <- object$tree
+    cf     <- object$confirmation
+    within <- object$within
+    n_d    <- nrow(object$split$discover)
+    n_c    <- nrow(object$split$confirm)
+  } else if (inherits(object, "ctreeMI_confirm_within")) {
+    if (is.null(tree)) stop("`tree` is required when `object` is a ctreeMI_confirm_within.")
+    within <- object
+    cf     <- object$robust
+    n_d    <- attr(tree, "ctreeMI_info")$n_original
+    n_c    <- cf$n_confirm
   } else if (inherits(object, "ctreeMI_confirm")) {
     if (is.null(tree)) stop("`tree` is required when `object` is a ctreeMI_confirm.")
     cf  <- object
@@ -1025,7 +1265,13 @@ report_confirm <- function(object, tree = NULL, digits = 3) {
   n_term <- length(partykit::nodeids(tree, terminal = TRUE))
 
   clustered <- !is.null(cf$cluster)
-  split_desc <- if (clustered) {
+  within_design <- !is.null(within)
+  centered <- !is.null(info$center_by)
+  split_desc <- if (within_design) {
+    paste0("divided at random within each ", cf$cluster, " into a discovery set of ",
+           n_d, " and a confirmation set of ", n_c, " observations, so that all ",
+           cf$n_clusters, " ", cf$cluster, "s contributed to both")
+  } else if (clustered) {
     ncl <- if (inherits(object, "ctreeMI_dc") && !is.null(object$split$n_clusters))
       object$split$n_clusters else c(NA, cf$n_clusters)
     paste0("divided at the level of ", cf$cluster, " into a discovery set of ",
@@ -1042,7 +1288,11 @@ report_confirm <- function(object, tree = NULL, digits = 3) {
     ". Each was multiply imputed separately, with M = ", info$m,
     " imputations, so that neither set's outcomes informed the other's ",
     "imputed predictor values. A conditional inference tree was fitted to the ",
-    "stacked discovery imputations with the Stack/M correction at alpha = ",
+    "stacked discovery imputations",
+    if (centered) paste0(", with the outcome centered on its ", info$center_by,
+                         " mean so that ", info$center_by,
+                         "-level differences could not drive the splits,") else "",
+    " with the Stack/M correction at alpha = ",
     format(info$alpha, digits = digits), ", yielding ", n_term,
     " terminal node", if (n_term == 1L) "" else "s", " defined by ", n_sp,
     " split", if (n_sp == 1L) "" else "s", ". Because the node-level test of ",
@@ -1062,6 +1312,23 @@ report_confirm <- function(object, tree = NULL, digits = 3) {
       "; the remainder", if (n_sp - n_conf == 1L) " was" else " were",
       " not supported and the corresponding node",
       if (n_sp - n_conf == 1L) " was" else "s were", " collapsed") else "", ".")
+
+  if (within_design && !is.null(within$summary)) {
+    ws <- within$summary
+    n_wc <- length(unique(ws$node_id[ws$reading == "confirmed within clusters"]))
+    n_bc <- length(unique(ws$node_id[ws$reading == "between-cluster difference"]))
+    n_pc <- sum(!vapply(within$by_cluster, is.null, logical(1L)))
+    txt <- paste0(txt,
+      " Because the two sets shared ", cf$cluster, "s, each split was also tested ",
+      "with ", cf$cluster, " fixed effects, so that its contrast reflected ",
+      "variation within ", cf$cluster, "s only",
+      if (!is.null(within$by_cluster)) paste0(", and within each of the ", n_pc,
+        " ", cf$cluster, "s separately") else "",
+      ". ", n_wc, " of ", n_sp, " split", if (n_sp == 1L) "" else "s",
+      " met the 0.05 level with fixed effects as well",
+      if (n_bc > 0L) paste0("; ", n_bc, " did not, indicating a difference between ",
+        cf$cluster, "s rather than a subgroup") else "", ".")
+  }
 
   structure(list(text = txt, n_discover = n_d, n_confirm = n_c,
                  m = info$m, alpha = info$alpha,

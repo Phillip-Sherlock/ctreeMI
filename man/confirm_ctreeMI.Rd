@@ -12,7 +12,8 @@ confirm_ctreeMI(
   adjust = "holm",
   conf.level = 0.95,
   cluster = NULL,
-  vcov_type = "HC1"
+  vcov_type = "HC1",
+  fixed = NULL
 )
 }
 \arguments{
@@ -23,9 +24,13 @@ confirm_ctreeMI(
 imputed separately from the discovery data; see \code{\link[=split_holdout]{split_holdout()}}.}
 
 \item{outcome_type}{Either \code{"auto"} (default), in which case numeric
-outcomes are modelled by linear regression and two-level factors by
-logistic regression, or a character vector of the same length as the
-number of outcomes with entries \code{"continuous"} or \code{"binary"}.}
+outcomes are modeled by linear regression, two-level factors and
+logicals by logistic regression, ordered factors with three or more
+levels by proportional-odds regression (\code{\link[MASS:polr]{MASS::polr()}}) and unordered
+factors with three or more levels by multinomial regression
+(\code{\link[nnet:multinom]{nnet::multinom()}}); or a character vector of the same length as the
+number of outcomes with entries \code{"continuous"}, \code{"binary"},
+\code{"ordinal"} or \code{"nominal"}.}
 
 \item{min_node}{Minimum number of confirmation observations, per
 imputation, that a terminal node must receive. Nodes below this are
@@ -47,6 +52,12 @@ package.}
 
 \item{vcov_type}{The small-sample adjustment passed to
 \code{\link[sandwich:vcovCL]{sandwich::vcovCL()}} when \code{cluster} is given. Default \code{"HC1"}.}
+
+\item{fixed}{Optional name of a column to enter as fixed effects (a factor)
+in the omnibus and per-split models, so that each test and contrast is
+estimated from variation within its levels only. Ordinarily the cluster
+identifier, when the discovery and confirmation halves share clusters;
+see \code{\link[=confirm_within]{confirm_within()}}. Node estimates are not adjusted.}
 }
 \value{
 An object of class \code{"ctreeMI_confirm"}: a list with elements
@@ -58,11 +69,13 @@ variance due to nonresponse.}
 outcome: \code{node_id}, \code{depth}, \code{split_var}, \code{rule} (the split as
 written), \code{outcome}, \code{contrast} with \code{lower} and \code{upper} (the
 pooled difference between the children and its confidence
-interval), \code{F}, \code{df1}, \code{df2}, \code{p}, \code{p_adj}, and \code{n_confirm} (mean
+interval), \code{contrast_level} (for a nominal outcome, the level the
+contrast refers to), \code{F}, \code{df1}, \code{df2}, \code{p}, \code{p_adj}, and \code{n_confirm} (mean
 observations in the parent node per imputation). \code{NA} where a child
 node fell below \code{min_node} in some imputation.}
 \item{\code{nodes}}{A data frame of pooled per-node estimates: \code{node_id},
-\code{outcome}, \code{estimate} (mean or proportion), \code{se}, \code{n_confirm}
+\code{outcome}, \code{level} (for ordinal and nominal outcomes, else \code{NA}),
+\code{estimate} (mean or proportion), \code{se}, \code{n_confirm}
 (mean observations per imputation), \code{n_clusters}, and \code{tested}.}
 \item{\code{m}}{Number of imputations used.}
 \item{\code{n_confirm}}{Number of confirmation observations.}
@@ -85,7 +98,7 @@ control under multiple imputation.
 A tree uses the data to choose which variables to split on and where.
 Testing the resulting subgroups on the same data is invalid regardless of
 how the missing values were handled, because the partition was selected
-to maximise exactly the separation being tested. Independently of that,
+to maximize exactly the separation being tested. Independently of that,
 the node-level test of \code{\link[=ctree_stacked]{ctree_stacked()}} is not calibrated under
 outcome-conditioned imputation; see the "Node-level calibration" section
 of that help page.
@@ -124,8 +137,12 @@ per-split \emph{p} values are adjusted across internal nodes by the
 method in \code{adjust}.
 
 Each split is also reported with the pooled difference between its
-children and a confidence interval, on the scale of the outcome for a
-continuous response and as a log odds ratio for a binary one. These are
+children and a confidence interval: on the scale of the outcome for a
+continuous response, as a log odds ratio for a binary one, as a log
+cumulative odds ratio for an ordinal one, and for a nominal one as the
+log odds ratio against the first level for whichever level differs most
+(named in \code{contrast_level}), the per-split test itself covering all the
+levels at once. These are
 the quantities to report: the p-value says whether the split survived,
 the contrast says how much the subgroups differ and how precisely that is
 known. \code{\link[=prune_unconfirmed]{prune_unconfirmed()}} collapses the splits that did not survive.
@@ -159,6 +176,38 @@ tests more conservative as clusters become few.
 Cluster-robust variance is nonetheless unreliable with very few clusters,
 and a warning is issued below twenty. The number of clusters behind each
 node and each split is reported so that this can be judged.
+}
+
+\subsection{Outcome types}{
+
+A continuous outcome is modeled by linear regression and a binary one by
+logistic regression. An ordered factor with three or more levels is
+modeled by proportional-odds logistic regression (\code{\link[MASS:polr]{MASS::polr()}}), so
+each split is one log cumulative odds ratio. An unordered factor with
+three or more levels is modeled by multinomial logistic regression
+(\code{\link[nnet:multinom]{nnet::multinom()}}), so each split has one log odds ratio per
+non-reference level and the per-split test is a joint test of them.
+Node estimates for ordinal and nominal outcomes are the proportions in
+each level, one row per node and level. \code{sandwich} provides no methods
+for \code{multinom}, so the cluster-robust covariance for a nominal outcome is
+assembled within the package from the per-observation scores of the
+multinomial log-likelihood; it supports \code{vcov_type} \code{"HC0"} and \code{"HC1"}.
+Several outcomes of any of these types can be confirmed together.
+}
+
+\subsection{Fixed effects}{
+
+When the two halves share clusters, because the split was stratified on the
+cluster rather than made between clusters, a split that only sorts clusters
+with different outcome levels can replicate in the confirmation half.
+Passing the cluster identifier as \code{fixed} adds it to the omnibus and
+per-split models as a factor, so the tested coefficients are the
+within-cluster differences between the children of each split; the
+fixed-effect coefficients themselves are not tested. The cluster-robust
+variance still applies when \code{cluster} is also given. Node estimates remain
+unadjusted means or proportions, since a fixed-effects model has no
+single per-node level. \code{\link[=confirm_within]{confirm_within()}} runs the confirmation with and
+without \code{fixed} and lines the results up.
 }
 
 \subsection{Node assignment under imputation}{

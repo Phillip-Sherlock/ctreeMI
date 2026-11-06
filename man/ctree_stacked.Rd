@@ -11,6 +11,7 @@ ctree_stacked(
   alpha = 0.05,
   scale_minsize = TRUE,
   verbose = TRUE,
+  center_by = NULL,
   ...
 )
 }
@@ -38,6 +39,21 @@ terminal nodes holding fewer than one original observation.}
 
 \item{verbose}{Logical. If \code{TRUE} (default), prints a message summarizing
 the stacking and correction applied.}
+
+\item{center_by}{Optional name of a grouping column, such as a cohort or
+site identifier. When given, each outcome is centered on its group mean
+within every imputed dataset before the tree is grown (see
+\code{\link[=center_outcome]{center_outcome()}}), so that the tree is grown on within-group variation
+and group-level variables cannot stand in for group differences. A
+two-level factor outcome is coded 0/1 first and the tree is then a
+regression tree on deviations from each group's rate; an ordered
+factor is replaced by its centered integer score and an unordered
+factor with three or more levels by centered indicators, one per level
+after the first, on which a multivariate tree is grown. The grouping
+column is removed from a \code{.} formula so the tree cannot split on it.
+Node summaries from \code{\link[=node_table]{node_table()}} are then on the centered scale;
+take node estimates from the confirmation instead. Intended for the
+within-cluster design of \code{\link[=confirm_within]{confirm_within()}}.}
 
 \item{...}{Additional arguments passed to \code{\link[partykit:ctree_control]{partykit::ctree_control()}}.
 Note: \code{alpha} in \code{...} is ignored in favor of the \code{alpha} argument

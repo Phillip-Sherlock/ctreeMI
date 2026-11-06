@@ -1,6 +1,6 @@
 Package: ctreeMI
 Title: Conditional Inference Trees with Stacked Multiple Imputation
-Version: 1.2.0
+Version: 1.3.0
 Authors@R: person("Phillip", "Sherlock",
     email = "phillip.sherlock@ufl.edu",
     role = c("aut", "cre"),
@@ -23,7 +23,10 @@ Description: Implements the stacked-imputation workflow for conditional
     imputation uncertainty without requiring pooling of structurally
     different trees. Also exports stack_imputations(),
     rescale_statistic(), prune_stackM(), node_table() and
-    report_ctreeMI() as standalone utilities. The underlying 'ctree'
+    report_ctreeMI() as standalone utilities. For data nested in few
+    clusters, a within-cluster design splits participants within every
+    cluster, grows the tree on the outcome centered by cluster, and confirms
+    the partition three ways (confirm_within()). The underlying 'ctree'
     algorithm is provided by 'partykit' (Hothorn & Zeileis, 2015; Hothorn,
     Hornik & Zeileis, 2006 <doi:10.1198/106186006X133933>).
 License: GPL (>= 3)
@@ -37,7 +40,12 @@ Imports:
     methods
 Suggests:
     sandwich,
+    MASS,
+    nnet,
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 Depends:
     R (>= 4.0.0)

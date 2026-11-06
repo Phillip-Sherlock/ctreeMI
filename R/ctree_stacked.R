@@ -30,6 +30,20 @@
 #'   terminal nodes holding fewer than one original observation.
 #' @param verbose Logical. If `TRUE` (default), prints a message summarizing
 #'   the stacking and correction applied.
+#' @param center_by Optional name of a grouping column, such as a cohort or
+#'   site identifier. When given, each outcome is centered on its group mean
+#'   within every imputed dataset before the tree is grown (see
+#'   [center_outcome()]), so that the tree is grown on within-group variation
+#'   and group-level variables cannot stand in for group differences. A
+#'   two-level factor outcome is coded 0/1 first and the tree is then a
+#'   regression tree on deviations from each group's rate; an ordered
+#'   factor is replaced by its centered integer score and an unordered
+#'   factor with three or more levels by centered indicators, one per level
+#'   after the first, on which a multivariate tree is grown. The grouping
+#'   column is removed from a `.` formula so the tree cannot split on it.
+#'   Node summaries from [node_table()] are then on the centered scale;
+#'   take node estimates from the confirmation instead. Intended for the
+#'   within-cluster design of [confirm_within()].
 #' @param ... Additional arguments passed to [partykit::ctree_control()].
 #'   Note: `alpha` in `...` is ignored in favor of the `alpha` argument
 #'   above.
@@ -265,6 +279,7 @@ ctree_stacked <- function(formula,
                           alpha         = 0.05,
                           scale_minsize = TRUE,
                           verbose       = TRUE,
+                          center_by     = NULL,
                           ...) {
 
   cl <- match.call()
@@ -281,6 +296,35 @@ ctree_stacked <- function(formula,
   data_list <- resolve_data(data, m)
   m_actual  <- length(data_list)
   n_orig    <- nrow(data_list[[1]])
+
+  # ## Center outcomes within groups###########################################-
+  formula_user <- formula
+  if (!is.null(center_by)) {
+    outcomes <- all.vars(formula[[2L]])
+    rhs      <- all.vars(formula[[3L]])
+    has_dot  <- "." %in% rhs
+    if (!has_dot && center_by %in% rhs)
+      warning("`center_by` variable '", center_by, "' also appears as a ",
+              "predictor in `formula`; the tree will be free to split on it, ",
+              "which is rarely intended.", call. = FALSE)
+    data_list <- center_outcome(data_list, outcome = outcomes, by = center_by)
+    # A nominal outcome becomes several indicator columns; the tree is grown
+    # on those, while the original formula is kept for the confirmation.
+    ycols <- unlist(attr(data_list, "outcome_columns"), use.names = FALSE)
+    if (!identical(ycols, outcomes)) {
+      formula <- stats::as.formula(
+        paste(paste(sprintf("`%s`", ycols), collapse = " + "), "~",
+              paste(deparse(formula[[3L]]), collapse = " ")),
+        env = environment(formula))
+    }
+    # With a `.` formula the grouping column would become a candidate
+    # splitting variable; take it out of the data the tree sees.
+    if (has_dot)
+      data_list <- lapply(data_list, function(d) d[names(d) != center_by])
+    if (verbose)
+      message(sprintf("Outcome(s) %s centered on the mean of each level of '%s'.",
+                      paste(outcomes, collapse = ", "), center_by))
+  }
 
   if (m_actual == 1) {
     warning(
@@ -365,7 +409,9 @@ ctree_stacked <- function(formula,
     scale_minsize   = scale_minsize,
     minsplit        = ctrl$minsplit,
     minbucket       = ctrl$minbucket,
-    formula         = formula,
+    formula         = formula_user,
+    discovery_formula = formula,
+    center_by       = center_by,
     call            = cl
   )
 

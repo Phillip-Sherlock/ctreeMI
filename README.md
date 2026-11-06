@@ -113,6 +113,28 @@ branch.
 | `node_table()` | Terminal nodes with effective sample sizes and split paths |
 | `report_ctreeMI()` | A methods paragraph describing the analysis |
 | `check_stackM_extraction()` | Diagnostic; run after upgrading `partykit` |
+| `split_holdout()`, `confirm_ctreeMI()`, `discover_confirm()` | Discover a tree on one half, confirm its splits on the other |
+| `confirm_within()`, `center_outcome()` | Within-cluster design for data nested in few clusters |
+
+## Few clusters
+
+Splitting whole clusters between the halves (`cluster` in `split_holdout()`)
+keeps the halves independent, but leaves half the clusters for confirmation.
+When that is too few, split participants within every cluster, grow the tree
+on the outcome centered by cluster, and confirm three ways:
+
+```r
+res <- discover_confirm(outcome ~ x1 + x2 + x3, data = my_data,
+                        cluster = "cohort", within = TRUE, m = 30, seed = 1)
+res$within        # robust, with cluster fixed effects, and per cluster, side by side
+```
+
+The claim is replication in held-out participants from these clusters; the
+per-cluster confirmations show how consistent the effect is across them.
+
+The confirmation handles continuous, binary, ordinal and nominal outcomes,
+singly or together, so every outcome a tree can be grown on can be confirmed.
+See `vignette("discover-then-confirm")` and `vignette("few-clusters")`.
 
 ## Reading the output
 
@@ -123,6 +145,14 @@ branch.
   averages over the imputations.
 * `minsplit` and `minbucket` are multiplied by M internally, so you specify
   them in units of original observations.
+
+## Simulations
+
+The simulations behind the Stack/M correction and the node-level
+calibration results are archived at
+[doi:10.5281/zenodo.21939940](https://doi.org/10.5281/zenodo.21939940).
+The simulation behind the within-cluster design (version 1.3.0), script and
+results, is in `simulations/` in this repository.
 
 ## Citation
 

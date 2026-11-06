@@ -1,25 +1,34 @@
 ## R CMD check results
 
-0 errors | 0 warnings | 0 notes
+0 errors | 0 warnings | 1 note
+
+* checking CRAN incoming feasibility ... NOTE
+  Number of updates in past 6 months: 7
+
+Version 1.2.0 was released on 12 October 2026. This submission is not a
+bug-fix resubmission: it adds a design for data nested in few clusters,
+ordinal and nominal outcomes in the confirmation step, and two vignettes.
 
 ## Test environments
 
-* macOS Sonoma 14.8.4 (local), R 4.4.2, aarch64-apple-darwin20
-* win-builder (R-devel and R-release)
+* macOS, local, R 4.4.2 (aarch64-apple-darwin20)
+* win-builder, R-release 4.6.2 (x86_64-w64-mingw32)
+* win-builder, R-devel (2026-11-05 r90840)
 
 ## Reason for this submission
 
-New functionality. The discover-then-confirm workflow introduced in 1.1.0
-now supports clustered data: split_holdout() and discover_confirm() can
-assign whole clusters to one half of the split, and confirm_ctreeMI() can
-use a cluster-robust variance from sandwich::vcovCL() in every pooled test.
-The Rubin pooling is now implemented internally so that an arbitrary
-covariance matrix can be supplied; a test confirms agreement with mice::D1()
-in the unclustered case.
+New functionality. The discover-then-confirm workflow now has a design for
+data nested in few clusters, where splitting whole clusters would leave too
+few to confirm on: participants are split within every cluster, the tree is
+grown on the outcome centered by cluster (center_outcome(), and center_by in
+ctree_stacked()), and the partition is confirmed three ways
+(confirm_within()), including with cluster fixed effects (the new `fixed`
+argument of confirm_ctreeMI()). discover_confirm() gains `within` to run
+the sequence.
 
-sandwich is added to Suggests. No existing function's default behaviour has
-changed.
+confirm_ctreeMI() also gains ordinal and nominal outcomes, through
+MASS::polr() and nnet::multinom(); MASS and nnet are added to Suggests and
+are only required when such an outcome is confirmed.
 
-## Downstream dependencies
-
-None.
+All new arguments default to their previous behavior. No existing
+function's default behavior has changed.
