@@ -9,17 +9,18 @@
 
 ## Reason for this submission
 
-New functionality. The discover-then-confirm workflow introduced in 1.1.0
-now supports clustered data: split_holdout() and discover_confirm() can
-assign whole clusters to one half of the split, and confirm_ctreeMI() can
-use a cluster-robust variance from sandwich::vcovCL() in every pooled test.
-The Rubin pooling is now implemented internally so that an arbitrary
-covariance matrix can be supplied; a test confirms agreement with mice::D1()
-in the unclustered case.
+New functionality. The discover-then-confirm workflow now has a design for
+data nested in few clusters, where splitting whole clusters would leave too
+few to confirm on: participants are split within every cluster, the tree is
+grown on the outcome centered by cluster (center_outcome(), and center_by in
+ctree_stacked()), and the partition is confirmed three ways
+(confirm_within()), including with cluster fixed effects (the new `fixed`
+argument of confirm_ctreeMI()). discover_confirm() gains `within` to run
+the sequence.
 
-sandwich is added to Suggests. No existing function's default behaviour has
-changed.
+confirm_ctreeMI() also gains ordinal and nominal outcomes, through
+MASS::polr() and nnet::multinom(); MASS and nnet are added to Suggests and
+are only required when such an outcome is confirmed.
 
-## Downstream dependencies
-
-None.
+All new arguments default to their previous behavior. No existing
+function's default behavior has changed.

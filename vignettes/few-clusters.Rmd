@@ -1,0 +1,140 @@
+---
+title: "Few clusters: the within-cluster design"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Few clusters: the within-cluster design}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+set.seed(3)
+```
+
+## When splitting whole clusters leaves too few to confirm on
+
+The `cluster` argument of `discover_confirm()` assigns whole clusters to
+one half of the split or the other. That keeps the two halves independent
+at the cluster level, but the confirmation is left with half the clusters,
+and its reference degrees of freedom are that number minus one. With eight
+cohorts, the confirmation would rest on four, three degrees of freedom. The
+package warns below twenty clusters in the confirmation half, which means
+about forty in total.
+
+The within-cluster design is the alternative for data nested in a small
+number of clusters:
+
+1. **Split within clusters.** Every cluster is cut in half at random
+   (`strata = cluster`), so every cluster contributes participants to both
+   halves and the confirmation keeps them all.
+2. **Discover on the centered outcome.** Before the tree is grown, the
+   outcome is centered on its cluster mean within each imputed dataset
+   (`center_by = cluster`), so that cluster-level variables cannot stand
+   in for differences between clusters.
+3. **Confirm three ways.** The standard cluster-robust confirmation on the
+   raw outcome; the same confirmation with cluster fixed effects; and a
+   separate confirmation within each cluster.
+
+`discover_confirm(cluster = , within = TRUE)` runs the sequence.
+
+## Why the extra steps are needed
+
+Because both halves contain the same clusters, a split that merely sorts
+clusters with different outcome levels can replicate for the wrong reason.
+Suppose cohorts differ in their average outcome, and some predictor tracks
+cohort membership, a site characteristic, say. A tree grown on the raw
+outcome will tend to split on that predictor, because it predicts the
+outcome through the cohort differences; and the split will then pass a
+cluster-robust confirmation, because the same cohorts, with the same
+differences, sit in the confirmation half.
+
+Centering the outcome at discovery removes the cluster differences before
+the tree sees them. The fixed-effects confirmation removes them again at
+confirmation, so each split's contrast is estimated from variation within
+clusters only. The per-cluster confirmations show whether a split points
+the same way in most clusters or rests on one.
+
+## A worked example
+
+Eight cohorts with their own intercepts, a real within-cohort effect of
+`x1`, and a cohort proxy `x4` that tracks the cohort intercepts but has no
+within-cohort relation to the outcome.
+
+```{r data}
+library(ctreeMI)
+G <- 8; n_per <- 100; n <- G * n_per
+cohort <- factor(rep(sprintf("c%02d", 1:G), each = n_per))
+u  <- rnorm(G, 0, 0.6)[as.integer(cohort)]
+x1 <- rnorm(n); x2 <- rnorm(n); x4 <- u + rnorm(n, 0, 0.3)
+y  <- u + 1.2 * (x1 > 0) + rnorm(n)
+d  <- data.frame(y, x1, x2, x4, cohort)
+d$x1[sample(n, 120)] <- NA
+```
+
+```{r run}
+res <- discover_confirm(y ~ x1 + x2 + x4, data = d, m = 5,
+                        cluster = "cohort", within = TRUE, seed = 7)
+res$within
+```
+
+The tree split on `x1`, not on the proxy. The summary lines the three
+confirmations up by split:
+
+* `contrast` and `p_adj` are from the cluster-robust confirmation on the
+  raw outcome. These are the estimates to report.
+* `within` and `p_adj_within` are from the fixed-effects confirmation.
+* `same_sign` counts the clusters whose own contrast shares the sign of the
+  robust contrast, out of the clusters in which the split could be tested.
+* `reading` is `confirmed within clusters` when both tests pass at alpha,
+  `between-cluster difference` when the robust test passes but the
+  fixed-effects test does not, and `not confirmed` otherwise.
+
+The full confirmation objects are there for inspection:
+`res$within$robust`, `res$within$within`, and `res$within$by_cluster`, a
+list with one confirmation per cohort. `res$confirmation` is the robust
+one, so `prune_unconfirmed()` and `report_confirm()` work as they do for
+any other analysis.
+
+```{r report}
+report_confirm(res)
+```
+
+## What the claim is
+
+With a whole-cluster split, a confirmed split is evidence about clusters the
+tree never saw. With the within-cluster design, the claim is replication in
+held-out participants from these clusters. How far that extends to other
+clusters depends on how consistent the effect is across them, which is what
+the per-cluster confirmations show: an effect that points the same way in
+most clusters is unlikely to be an artifact of one or two.
+
+## What the design has been checked against
+
+The design was examined in a simulation with 5 to 20 cohorts, equal and
+unequal cohort sizes, and null, moderate and weak within-cohort effects,
+against the same split with the tree grown on the raw outcome and against
+splitting whole cohorts. In short: growing the tree on the centered outcome
+kept a cohort-level proxy out of the tree, nothing was confirmed within
+clusters under the null, the fixed-effects test cost almost no power, and
+unequal cohort sizes changed none of this. The script and results are
+archived with the package's other simulations; the README gives the links.
+Effects that differ in size between cohorts were not examined.
+
+## Doing it by hand
+
+The pieces are separate functions, for when the imputation model needs
+control.
+
+```{r hand, eval = FALSE}
+parts <- split_holdout(d, strata = "cohort", seed = 42)
+imp_d <- mice::mice(parts$discover, m = 30, seed = 1)   # cohort stays in
+imp_c <- mice::mice(parts$confirm,  m = 30, seed = 2)   # the imputation model
+tree  <- ctree_stacked(y ~ x1 + x2 + x4, data = imp_d, center_by = "cohort")
+cw    <- confirm_within(tree, imp_c, cluster = "cohort")
+```
+
+`center_outcome()` is the centering step on its own; it scores an ordinal
+outcome and expands a nominal one into centered indicators, and
+`ctree_stacked()` grows a multivariate tree on the expansion while keeping
+the original formula for the confirmation.

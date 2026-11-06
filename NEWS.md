@@ -1,3 +1,67 @@
+# ctreeMI 1.3.0
+
+## Within-cluster design for data nested in few clusters
+
+Splitting whole clusters between the halves (`cluster` in `split_holdout()`)
+leaves half the clusters for confirmation, which is too few when clusters
+are few. This release adds the alternative: split participants within every
+cluster, grow the tree on within-cluster variation, and confirm three ways.
+
+* `center_outcome()` centers the outcome on its group mean within each
+  imputed dataset; a two-level factor or logical is coded 0/1 first. It
+  accepts the outcome types the confirmation accepts: numeric, two-level
+  factor or logical, and several of these together.
+* `ctree_stacked()` gains `center_by`, which applies `center_outcome()`
+  before the tree is grown, so cluster-level variables cannot stand in for
+  differences between clusters. The grouping column is removed from a `.`
+  formula.
+* `confirm_ctreeMI()` gains `fixed`: a column entered as fixed effects in the
+  omnibus and per-split models, so each test and contrast is estimated from
+  variation within its levels. Only the node and side coefficients are
+  tested; node estimates are not adjusted.
+* `confirm_within()` runs the confirmation three ways, with cluster-robust
+  variance, with cluster fixed effects, and within each cluster alone, and
+  lines the results up by split with a `reading` for each.
+* `discover_confirm()` gains `within`. With `cluster` and `within = TRUE`
+  it stratifies the split on the cluster, keeps the cluster identifier in the
+  imputation model, grows the tree with `center_by = cluster`, and confirms
+  with `confirm_within()`. The returned object gains a `within` element; its
+  `confirmation` element is the cluster-robust confirmation on the raw
+  outcome, so `prune_unconfirmed()` and `report_confirm()` work as before.
+
+## Ordinal and nominal outcomes
+
+`confirm_ctreeMI()` now confirms every outcome type `ctree_stacked()` can
+grow a tree on. An ordered factor with three or more levels is modeled by
+proportional-odds logistic regression (`MASS::polr()`), so each split is one
+log cumulative odds ratio; an unordered factor with three or more levels by
+multinomial logistic regression (`nnet::multinom()`), so each split is a
+joint test of one log odds ratio per non-reference level, with the largest
+reported in `contrast` and its level in the new `contrast_level` column.
+Node estimates for these outcomes are the proportions in each level, one
+row per node and level (new `level` column in `nodes`). `outcome_type`
+accepts `"ordinal"` and `"nominal"`, and `"auto"` resolves them from the
+factor. Because `sandwich` has no methods for `multinom`, the
+cluster-robust covariance for a nominal outcome is assembled within the
+package from the per-observation scores; it supports `vcov_type` `"HC0"`
+and `"HC1"` and agrees with `sandwich::vcovCL()` on a two-level problem.
+`center_outcome()` scores an ordinal outcome and expands a nominal one into
+centered indicators, and `ctree_stacked()` with `center_by` grows a
+multivariate tree on those while keeping the user's formula for the
+confirmation. `MASS` and `nnet` are added to Suggests.
+
+A simulation with 5 to 20 clusters, equal and unequal cluster sizes, and
+null, moderate and weak within-cluster effects compared the design with the
+alternatives on the same data. The script and results are archived with the
+package's other simulations (see README).
+
+## Vignettes
+
+Two vignettes are added: "Discover, then confirm", on the workflow and the
+outcome types it handles, and "Few clusters: the within-cluster design".
+
+No existing default behavior has changed.
+
 # ctreeMI 1.2.0
 
 ## Clustered data

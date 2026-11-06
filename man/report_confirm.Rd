@@ -7,11 +7,13 @@
 report_confirm(object, tree = NULL, digits = 3)
 }
 \arguments{
-\item{object}{A \code{ctreeMI_dc} object from \code{\link[=discover_confirm]{discover_confirm()}}, or a
-\code{ctreeMI_confirm} object from \code{\link[=confirm_ctreeMI]{confirm_ctreeMI()}}.}
+\item{object}{A \code{ctreeMI_dc} object from \code{\link[=discover_confirm]{discover_confirm()}}, a
+\code{ctreeMI_confirm} object from \code{\link[=confirm_ctreeMI]{confirm_ctreeMI()}}, or a
+\code{ctreeMI_confirm_within} object from \code{\link[=confirm_within]{confirm_within()}}.}
 
 \item{tree}{The discovery tree, required when \code{object} is a
-\code{ctreeMI_confirm} object and ignored otherwise.}
+\code{ctreeMI_confirm} or \code{ctreeMI_confirm_within} object and ignored
+otherwise.}
 
 \item{digits}{Number of digits used in the reported quantities.}
 }

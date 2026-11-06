@@ -1,0 +1,170 @@
+---
+title: "Discover, then confirm"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Discover, then confirm}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+set.seed(1)
+```
+
+## The problem this workflow solves
+
+A conditional inference tree chooses its splits by searching the data for
+the variables and cut points that separate the outcome best. Testing those
+same splits on the same data is circular: the partition was selected to
+maximize exactly the separation being tested. With multiply imputed data
+there is a second problem, specific to this package. The node-level test of
+`ctree_stacked()` is not calibrated to its nominal level when the imputation
+model conditions on the outcome, which is the recommended practice. Under a
+true null it rejects more often than alpha implies.
+
+Both problems have one remedy. Treat the tree as a hypothesis about
+subgroup structure, and test that hypothesis on data the tree has never
+seen. `discover_confirm()` does the whole sequence: split the data, impute
+each half separately, grow the tree on one half, and test every split on
+the other.
+
+## A worked example
+
+Six hundred observations, two real predictors and one noise predictor,
+15% of `x1` and 10% of `x2` missing at random.
+
+```{r data}
+library(ctreeMI)
+n <- 600
+d <- data.frame(x1 = rnorm(n), x2 = rnorm(n), x3 = rnorm(n))
+d$y <- rnorm(n) + 1.2 * (d$x1 > 0) + 0.9 * (d$x1 > 0) * (d$x2 > 0.5)
+d$x1[sample(n, 90)] <- NA
+d$x2[sample(n, 60)] <- NA
+```
+
+One call runs the workflow. `m = 5` keeps this vignette quick; use 20 to 30
+in practice.
+
+```{r run}
+res <- discover_confirm(y ~ x1 + x2 + x3, data = d, m = 5, seed = 11)
+res
+```
+
+Four things happened:
+
+1. `split_holdout()` divided the rows at random into a discovery half and a
+   confirmation half, before any imputation.
+2. `mice::mice()` imputed each half separately, so that neither half's
+   outcomes informed the other's imputed predictor values. That separation
+   is what makes the confirmation independent.
+3. `ctree_stacked()` stacked the discovery imputations and grew one tree
+   with the Stack/M correction.
+4. `confirm_ctreeMI()` tested every split of that tree on the confirmation
+   half.
+
+## What the confirmation tests
+
+Each split in the discovery tree is a hypothesis. For every internal node,
+the confirmation observations that reach that node are divided by the
+node's own rule, the rule found in discovery, and the outcome is compared
+between the two children. Because the parent and the rule were fixed before
+the confirmation data were seen, this is a pre-specified comparison. A
+split whose children do not differ in independent data is one the tree
+should not have made.
+
+The comparison is a Wald test of the group difference: the model is fitted
+in each imputed confirmation dataset, the estimates and their covariance are
+pooled by Rubin's rules, and the pooled estimate is tested once, by the
+multivariate Wald procedure of Li, Raghunathan and Rubin (1991) with
+small-sample degrees of freedom. The p-values are then adjusted across the
+splits of the tree, by Holm's method by default.
+
+Every split is tested on its own, on the participants who reach it, whether
+or not its parent passed. A split beneath an unconfirmed split has no clear
+interpretation, which is why the `depth` column is reported.
+
+The output leads with estimates. Each split comes with the pooled
+difference between its children and a 95% interval; the adjusted p-value
+says only whether the split survived.
+
+```{r splits}
+res$confirmation$splits[, c("node_id", "depth", "rule", "contrast", "lower", "upper", "p_adj")]
+```
+
+## Acting on the result
+
+`prune_unconfirmed()` collapses every split that did not confirm, working
+from the bottom of the tree up, and returns the partition the confirmation
+data support.
+
+```{r prune}
+pruned <- prune_unconfirmed(res$tree, res$confirmation)
+pruned
+```
+
+`report_confirm()` writes the methods paragraph: how the sample was divided,
+how each half was imputed, what was discovered, and what survived.
+
+```{r report}
+report_confirm(res)
+```
+
+## Outcome types
+
+The confirmation handles every outcome a tree can be grown on.
+
+| Outcome | Model in the confirmation | The contrast reported for a split |
+|---|---|---|
+| numeric | linear regression | difference in means |
+| two-level factor or logical | logistic regression | log odds ratio |
+| ordered factor, 3+ levels | proportional-odds regression (`MASS::polr`) | log cumulative odds ratio |
+| unordered factor, 3+ levels | multinomial regression (`nnet::multinom`) | log odds ratio against the first level, for the level that differs most; the test covers all levels |
+
+Several outcomes can be confirmed together, as in `y1 + y2 ~ x1 + x2`;
+each split is tested for each outcome. For an ordinal or nominal outcome,
+node estimates are the proportions in each level, one row per node and
+level.
+
+`outcome_type = "auto"` resolves the type from the column. It can be set
+explicitly, one entry per outcome, when a numeric 0/1 column should be
+treated as binary, for example.
+
+```{r ordinal}
+d$y_ord <- cut(d$y, c(-Inf, 0, 1.5, Inf), labels = c("low", "mid", "high"),
+               ordered_result = TRUE)
+res_ord <- discover_confirm(y_ord ~ x1 + x2 + x3, data = d, m = 5, seed = 12)
+res_ord$confirmation$splits[, c("node_id", "rule", "contrast", "p_adj")]
+head(res_ord$confirmation$nodes)
+```
+
+## Clustered data
+
+When observations are nested in cohorts, sites or classrooms, two things
+must change: the split should keep each cluster on one side, and the
+confirmation should use a variance that respects the nesting. Both are the
+`cluster` argument.
+
+```{r cluster, eval = FALSE}
+res <- discover_confirm(y ~ x1 + x2 + x3, data = d, cluster = "cohort",
+                        m = 30, seed = 1)
+```
+
+With `cluster`, whole clusters go to one half or the other, so a confirmed
+split is evidence about clusters the tree never saw. The cost is that only
+the clusters in the confirmation half are available for testing: the
+reference degrees of freedom are that number minus one, and the package
+warns below twenty. When there are too few clusters to split whole, see the
+"Few clusters" vignette for the within-cluster design.
+
+## What to report
+
+* How the sample was divided, and that each half was imputed separately.
+* The discovery tree, labeled as discovery.
+* For each split: the pooled difference with its interval, the adjusted
+  p-value, and the number of confirmation observations (and clusters) it
+  rested on.
+* The pruned tree, and a statement of which splits did not confirm.
+* The number of imputations and the alpha used at discovery.
+
+`report_confirm()` produces a draft that covers these.
